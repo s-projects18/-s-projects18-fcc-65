@@ -16,6 +16,9 @@ var helmet            = require('helmet');
 // { meta: ..., data: ...,  error: ... }
 const responseEnhancer = require('express-response-formatter');
 
+// mount database-helper lib
+var database = require('./helper/database.js');
+
 var app = express();
 
 
@@ -49,10 +52,10 @@ app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
 
 // ----------------- middleware functions -----------------------
 // show error page if there is no database-connection
-/*app.use((req, res, next)=>{
+app.use((req, res, next)=>{
   if(database.checkConnection()) next();
   else res.render('error-db.pug', {title: 'No database connection'});
-});*/
+});
 
 // testing status for frontend
 app.use((req, res, next)=>{
@@ -101,7 +104,7 @@ app.use(function(req, res, next) {
 // ================= [3] connect to database and start listening ================
 // start listening - no matter what db-status is
 // checking connection in middleware
-//database.connect();
+database.connect();
 
 //Start our server and tests!
 app.listen(process.env.PORT || 3000, function () {

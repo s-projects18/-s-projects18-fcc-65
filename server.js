@@ -19,6 +19,9 @@ const responseEnhancer = require('express-response-formatter');
 // mount database-helper lib
 var database = require('./helper/database.js');
 
+// needed for delete_password
+
+
 var app = express();
 
 
@@ -32,6 +35,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Add formatter functions to "res" object via "responseEnhancer()"
 app.use(responseEnhancer());
+
 
 
 // ------------------ security-stuff ----------------------------

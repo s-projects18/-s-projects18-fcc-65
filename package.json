@@ -21,7 +21,8 @@
 		"zombie": "^5.0.5",
 		"helmet": "^3.1.0",
     "pug": "^2.0.4",
-    "express-response-formatter": "^1.1.0"
+    "express-response-formatter": "^1.1.0",
+    "bcrypt": "^3.0.6"
 	},
 	"engines": {
 		"node": "4.4.3"

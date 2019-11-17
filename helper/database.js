@@ -83,21 +83,52 @@ const threadsSchema = new Schema({
 const Threads = mongoose.model('thread', threadsSchema ); // Mongoose:thread <=> MongoDB:threads
 const Replys = mongoose.model('reply', replysSchema ); // Mongoose:reply <=> MongoDB:replys
 
+
+// helper --------------------------------
+// return a copy of threads without: delete_passwort, reported
+const cleanUpThreads = threads => {
+    const cp = [];
+    threads.forEach((v,i)=>{ 
+      let repl = v.replys.map(v2=>{return {_id:v2._id, text:v2.text, created_on:v2.created_on}});
+      cp.push({
+        _id:v._id, board:v.board, text:v.text, created_on:v.created_on, bumped_on: v.bumped_on, replys:repl
+      });
+    });  
+  return cp;
+}
+
+
 // crud --------------------------------
 // Promise-schema: Foo.then().catch()
 // Promises used instead of callback
 
-/* TODO: remove password+reported in subdocuments
-- will not work with select
--> https://stackoverflow.com/questions/25960641/mongoose-select-subdoc-fields
--> or just remove it from array...
-*/
 
 // get all threads of a board
-// https://stackoverflow.com/questions/42685297/mongodb-with-mongoose-limit-subdocuments
-// limit works
-// slics not working
+// both solutions requires additional cleanup, var 1 probably can be done better
+
+// [var 1] get all threads of a board with aggregate()
 exports.getThreads = (board, limitThreads, limitReplys) => {
+  return new Promise( (resolve, reject)=>{
+    Threads
+      .aggregate([
+        {$match:{board:board}},
+        {$project:{_id:1, board:1, text:1, created_on:1, bumped_on:1, replys:{_id:1, text:1, created_on:1}}}
+      ])
+      .sort({bumped_on:1})
+      .limit(limitThreads)
+      .then(data=>{
+        data.forEach(v=>v.replys = v.replys.slice(-limitReplys)); // bad-way: should be possible with aggregate...
+        resolve(data);
+      })
+      .catch(err=>{
+        reject(err);
+      });    
+  });  
+}
+
+// [var 2] get all threads of a board with find(), select()
+// https://stackoverflow.com/questions/42685297/mongodb-with-mongoose-limit-subdocuments
+exports.getThreads2 = (board, limitThreads, limitReplys) => {
   return new Promise( (resolve, reject)=>{
     Threads
       .find({board:board}, {replys: {$slice: limitReplys}})
@@ -105,7 +136,8 @@ exports.getThreads = (board, limitThreads, limitReplys) => {
       .sort({bumped_on:1})
       .limit(limitThreads)
       .then(data=>{
-        resolve(data);
+        // bad, but in var 2 there is no query-solution
+        resolve(cleanUpThreads(data));
       })
       .catch(err=>{
         reject(err);
@@ -118,8 +150,10 @@ exports.getThread = (threadId) => {
   return new Promise( (resolve,reject)=>{
     Threads
       .findOne({_id:threadId})
+      .select({board:1, text:1, created_on:1, bumped_on:1, replys:1})
       .then(data=>{
-        resolve(data);
+        // bad: see same problem in getThreads()
+        resolve(cleanUpThreads([data]));
       })
       .catch(err=>{
         reject(err);

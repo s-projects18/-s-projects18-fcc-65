@@ -130,6 +130,13 @@
             success: function(data)
             {
               alert(data);
+            },
+            error: function(jqXHR, textStatus, errorThrown ) {
+              let er = [];
+              JSON.parse(jqXHR.responseText).errors.forEach((v,i)=>{
+                er.push(v.details);
+              });
+              alert(er.join(', '));
             }
           });
           e.preventDefault();

@@ -18,6 +18,7 @@ module.exports = function (app) {
       res.formatter.badRequest([{details: 'board not defined'}]);
     });
 
+  // --------------------- THREADS ---------------------
   app.route('/api/threads/:board')
     // I can POST a thread to a specific message board by passing form data text and delete_password to /api/threads/{board}
     .post( (req, res)=>{
@@ -45,8 +46,23 @@ module.exports = function (app) {
       database.getThreads(board, 10, 3)
         .then(d=>res.formatter.ok(d))
         .catch(err=>res.formatter.badRequest([{details: err.message}]));
-    });
+    })
+    // I can delete a thread completely if I send a DELETE request to /api/threads/{board}
+    // and pass along the thread_id & delete_password. (Text response will be 'incorrect password' or 'success')
+    .delete((req, res)=>{
+      database.getThread(req.body.thread_id, true)
+        .then(d=>{
+          if(d.length==0) throw new Error('no thread found'); // sets Promise in 'catch-state'
+          if(bcrypt.compareSync(req.body.delete_password, d[0].delete_password)) {
+            database.deleteThread(req.body.thread_id).then(d=>'success');  
+          } else throw new Error('wrong password');
+        })
+        .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}))
+        .catch(err=>res.formatter.badRequest([{details: err.message}]));
+    }); // delete
   
+  
+  // --------------------- REPLIES ---------------------
   app.route('/api/replies/:board')
     // I can POST a reply to a thead on a specific board by passing form data text, delete_password, & thread_id to /api/replies/{board}
     // and it will also update the bumped_on date to the comments date  

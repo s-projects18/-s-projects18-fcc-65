@@ -44,7 +44,7 @@ const replysSchema = new Schema({
   text:{
     type: String,
     required:true,
-    // attention: validator works also on existing subdocuments
+    // attention: validator works also on existing subdocuments,
     // if you add validator later: error is thrown on existing entrys
     validate: {
       validator: function(v) {
@@ -58,7 +58,7 @@ const replysSchema = new Schema({
   reported:{type: Boolean, default: false }
 });
 
-// we can have the same board with different id's
+// we can have the same board with different (thread-)id's
 // eg: board 'foo' with id=1 and foo with id=2 => 2 threads
 const threadsSchema = new Schema({
   board:{
@@ -91,20 +91,21 @@ const cleanUpThreads = threads => {
     threads.forEach((v,i)=>{ 
       let repl = v.replys.map(v2=>{return {_id:v2._id, text:v2.text, created_on:v2.created_on}});
       cp.push({
-        _id:v._id, board:v.board, text:v.text, created_on:v.created_on, bumped_on: v.bumped_on, replys:repl
+        _id:v._id, board:v.board, text:v.text, created_on:v.created_on, bumped_on: v.bumped_on, replys:repl, reported: v.reported
       });
     });  
   return cp;
 }
 
 
-// crud --------------------------------
+// crud ----------------------------------------------
 // Promise-schema: Foo.then().catch()
 // Promises used instead of callback
 
 
 // get all threads of a board
 // both solutions requires additional cleanup, var 1 probably can be done better
+// returns [{...thread-obj1...}, {...thread-obj2...}, ...]
 
 // [var 1] get all threads of a board with aggregate()
 exports.getThreads = (board, limitThreads, limitReplys) => {
@@ -146,16 +147,23 @@ exports.getThreads2 = (board, limitThreads, limitReplys) => {
 }
 
 // get one thread with all replys
-exports.getThread = (threadId) => {
+// returns [{...thread-obj...}]
+exports.getThread = (threadId, completeSelection=false) => {
   return new Promise( (resolve,reject)=>{
+    const sel = {board:1, text:1, created_on:1, bumped_on:1, replys:1, delete_password:1, reported:1};
+ 
     Threads
       .findOne({_id:threadId})
-      .select({board:1, text:1, created_on:1, bumped_on:1, replys:1})
+      .select(sel)
       .then(data=>{
-        // bad: see same problem in getThreads()
-        resolve(cleanUpThreads([data]));
+        if(data==null) throw new Error('nothing to delete');
+        else {
+          // bad: see same problem in getThreads(), var 2
+          resolve(completeSelection?[data]:cleanUpThreads([data])); 
+        }
       })
       .catch(err=>{
+        console.log(err);
         reject(err);
       });    
   } );
@@ -198,18 +206,21 @@ exports.insertReply = (threadId, dataObj) => {
   } );    
 }
 
-/*
-exports.deleteAllLikes = (numMinutes, next) => {
-  var d = new Date();
-  d.setMinutes(d.getMinutes()-numMinutes);
-  let filter = {created_on: {$lt:d}};
-  Likes.deleteMany(filter, (err, resultObject) => {
-    if(err==null) {
-      next(null, resultObject); 
-    } else {
-      console.log(err); 
-      next(err, null);     
-    }
+// delete complete thread
+exports.deleteThread = (threadId) => {
+  // attention: if you provide a wrong filter, eg: {typo_id: threadId}
+  // no error is thrown and ALL entries are deleted because filter acts like: {}
+  let filter = {_id: threadId};
+  return new Promise( (resolve, reject)=>{
+    if(threadId==undefined) {reject('thread_id is undefined'); return;}
+    
+    Threads.deleteMany(filter, (err, resultObject) => {
+      if(err==null) {
+        resolve(resultObject); 
+      } else {
+        console.log(err); 
+        reject(err);     
+      }
+    });    
   });
 }
-*/

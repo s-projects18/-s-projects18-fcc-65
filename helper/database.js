@@ -156,7 +156,7 @@ exports.getThread = (threadId, completeSelection=false) => {
       .findOne({_id:threadId})
       .select(sel)
       .then(data=>{
-        if(data==null) throw new Error('nothing to delete');
+        if(data==null) throw new Error('no thread found');
         else {
           // bad: see same problem in getThreads(), var 2
           resolve(completeSelection?[data]:cleanUpThreads([data])); 
@@ -191,18 +191,65 @@ exports.insertThread = dataObj => {
 exports.insertReply = (threadId, dataObj) => {
   return new Promise( (resolve, reject)=>{
     // this way replies are stored in a extra replies-collection:
-    //const newReply = Replys.create(dataObj);   
+    //const newReply = Replys.create(dataObj); 
+    
+    // not atomic! (compare: updateReply())
     Threads
-      .findOne({_id:threadId})
+      .findOne({_id:threadId}) // database-server
       .then(data=>{
-        data.replys.push(dataObj)
-        data.save() // here subdocument-validator is called!
+        data.replys.push(dataObj) // web-server
+        data.save() // call subdocument-validator and then save on database-server
         .then(d=>resolve(d))
         .catch(e=>reject(e)); 
       })
       .catch(err=>{
         reject(err);
       });   
+  } );    
+}
+
+// update reply
+// updateKey, updateValue -> reply[x].updateKey=updateValue
+// https://stackoverflow.com/questions/26156687/mongoose-find-update-subdocument/26157458
+exports.updateReply = (thread_id, reply_id, updateKey, updateValue) => {
+  return new Promise( (resolve, reject)=>{
+    // this is an atomic solution!
+    const o = {};
+    o["replys.$."+updateKey]=updateValue;
+    
+    Threads.findOneAndUpdate(
+      {"_id":thread_id, "replys._id":reply_id},
+      {"$set":o}
+    )
+    .then(d=>{
+      if(d==null) reject(new Error('reply not found'))
+      else resolve(d)
+    })
+    .catch(e=>reject(e)); 
+  });
+}
+
+exports.findReply = (thread_id, reply_id) => {
+  return new Promise( (resolve, reject)=>{  
+    Threads.findOne(
+      {"_id":thread_id, "replys._id":reply_id}
+    )
+    .then(d=>{
+      if(d==null) reject(new Error('reply not found'))
+      else resolve(d)
+    })
+    .catch(e=>reject(e)); //
+  });
+}
+
+// thread: update reported
+exports.setReported = (threadId, reported=true) => {
+  return new Promise( (resolve, reject)=>{
+    // updateOne is atomic (NOT: read doc > update doc > save doc)
+    Threads
+      .updateOne({_id:threadId}, {reported: reported})
+      .then(d=>resolve(d))
+      .catch(err=>reject(err));   
   } );    
 }
 

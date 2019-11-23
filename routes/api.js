@@ -59,7 +59,14 @@ module.exports = function (app) {
         })
         .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}))
         .catch(err=>res.formatter.badRequest([{details: err.message}]));
-    }); // delete
+    })
+    // I can report a thread and change it's reported value to true by sending a PUT request
+    // to /api/threads/{board} and pass along the thread_id. (Text response will be 'success')
+    .put((req, res)=>{
+      database.setReported(req.body.thread_id, true)
+        .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: 'success'}))
+        .catch(err=>res.formatter.badRequest([{details: err.message}]));
+    });
   
   
   // --------------------- REPLIES ---------------------
@@ -93,6 +100,25 @@ module.exports = function (app) {
           .then(d=>res.formatter.ok(d))
           .catch(err=>res.formatter.badRequest([{details: err.message}]));
       }
+    })
+    // I can delete a post(just changing the text to '[deleted]') if I send a DELETE request to /api/replies/{board} 
+    // and pass along the thread_id, reply_id, & delete_password. (Text response will be 'incorrect password' or 'success')
+    .delete( (req, res)=>{
+        database.findReply(req.body.thread_id, req.body.reply_id)
+        .then(d=>{
+          const sub = d.replys.id(req.body.reply_id);      
+          if(bcrypt.compareSync(req.body.delete_password, sub.delete_password)) {
+            database.updateReply(req.body.thread_id, req.body.reply_id, 'text', '[deleted]').then(d=>'success')  
+          } else throw new Error('incorrect password');
+         })
+        .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}))
+        .catch(err=>res.formatter.badRequest([{details: err.message}]));
+    })
+    // I can report a reply and change it's reported value to true by sending a PUT request to /api/replies/{board}
+    // and pass along the thread_id & reply_id. (Text response will be 'success')   
+    .put( (req, res)=>{
+      database.updateReply(req.body.thread_id, req.body.reply_id, 'reported', true)
+        .then(d=>res.formatter.ok(d))
+        .catch(err=>res.formatter.badRequest([{details: err.message}]));
     });
-
 };

@@ -79,6 +79,13 @@ const threadsSchema = new Schema({
   reported:{type: Boolean, default: false }
 });
 
+// must be done before model-instances are built
+threadsSchema.pre('save', function (next) {
+  this.bumped_on = new Date();
+  next();
+});
+
+
 // model --------------------------------
 const Threads = mongoose.model('thread', threadsSchema ); // Mongoose:thread <=> MongoDB:threads
 const Replys = mongoose.model('reply', replysSchema ); // Mongoose:reply <=> MongoDB:replys
@@ -91,7 +98,7 @@ const cleanUpThreads = threads => {
     threads.forEach((v,i)=>{ 
       let repl = v.replys.map(v2=>{return {_id:v2._id, text:v2.text, created_on:v2.created_on}});
       cp.push({
-        _id:v._id, board:v.board, text:v.text, created_on:v.created_on, bumped_on: v.bumped_on, replys:repl, reported: v.reported
+        _id:v._id, board:v.board, text:v.text, created_on:v.created_on, bumped_on: v.bumped_on, replys:repl
       });
     });  
   return cp;
@@ -115,10 +122,18 @@ exports.getThreads = (board, limitThreads, limitReplys) => {
         {$match:{board:board}},
         {$project:{_id:1, board:1, text:1, created_on:1, bumped_on:1, replys:{_id:1, text:1, created_on:1}}}
       ])
-      .sort({bumped_on:1})
+      .sort({bumped_on:-1}) // -1: descending = newest first
       .limit(limitThreads)
       .then(data=>{
-        data.forEach(v=>v.replys = v.replys.slice(-limitReplys)); // bad-way: should be possible with aggregate...
+        data.forEach(v=>{
+          v.replys.sort((a,b)=>{
+            const a1 = new Date(a.created_on);
+            const b1 = new Date(b.created_on);
+            return a1.getTime()-b1.getTime();
+          });
+          v.replys = v.replys.slice(-limitReplys);
+          return v;
+        }); // bad-way: should be possible with aggregate...
         resolve(data);
       })
       .catch(err=>{
@@ -171,13 +186,13 @@ exports.getThread = (threadId, completeSelection=false) => {
 
 // insert new thread
 // dataObj: board, text, delete_password
-exports.insertThread = dataObj => {
+exports.insertThread = (dataObj, completeSelection=false) => {
   return new Promise( (resolve, reject)=>{
     // create object based on model
     new Threads(dataObj)
       .save()
       .then((doc) => {
-        resolve(doc);
+        resolve(completeSelection?[doc]:cleanUpThreads([doc]));
       })
       .catch((err)=> {
         console.log("insertThread-error", err);
@@ -188,7 +203,7 @@ exports.insertThread = dataObj => {
 
 // insert new reply
 // dataObj: text, delete_password
-exports.insertReply = (threadId, dataObj) => {
+exports.insertReply = (threadId, dataObj, completeSelection=false) => {
   return new Promise( (resolve, reject)=>{
     // this way replies are stored in a extra replies-collection:
     //const newReply = Replys.create(dataObj); 
@@ -199,7 +214,7 @@ exports.insertReply = (threadId, dataObj) => {
       .then(data=>{
         data.replys.push(dataObj) // web-server
         data.save() // call subdocument-validator and then save on database-server
-        .then(d=>resolve(d))
+        .then(d=>resolve(completeSelection?[d]:cleanUpThreads([d])))
         .catch(e=>reject(e)); 
       })
       .catch(err=>{
@@ -211,7 +226,7 @@ exports.insertReply = (threadId, dataObj) => {
 // update reply
 // updateKey, updateValue -> reply[x].updateKey=updateValue
 // https://stackoverflow.com/questions/26156687/mongoose-find-update-subdocument/26157458
-exports.updateReply = (thread_id, reply_id, updateKey, updateValue) => {
+exports.updateReply = (thread_id, reply_id, updateKey, updateValue, completeSelection=false) => {
   return new Promise( (resolve, reject)=>{
     // this is an atomic solution!
     const o = {};
@@ -223,7 +238,7 @@ exports.updateReply = (thread_id, reply_id, updateKey, updateValue) => {
     )
     .then(d=>{
       if(d==null) reject(new Error('reply not found'))
-      else resolve(d)
+      else resolve(completeSelection?[d]:cleanUpThreads([d]))
     })
     .catch(e=>reject(e)); 
   });
@@ -260,6 +275,22 @@ exports.deleteThread = (threadId) => {
   let filter = {_id: threadId};
   return new Promise( (resolve, reject)=>{
     if(threadId==undefined) {reject('thread_id is undefined'); return;}
+    
+    Threads.deleteMany(filter, (err, resultObject) => {
+      if(err==null) {
+        resolve(resultObject); 
+      } else {
+        console.log(err); 
+        reject(err);     
+      }
+    });    
+  });
+}
+
+exports.deleteBoard = (board) => {
+  let filter = {board: board};
+  return new Promise( (resolve, reject)=>{
+    if(board==undefined) {reject('board is undefined'); return;}
     
     Threads.deleteMany(filter, (err, resultObject) => {
       if(err==null) {

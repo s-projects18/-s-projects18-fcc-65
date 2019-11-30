@@ -31,7 +31,7 @@ module.exports = function (app) {
           text: req.body.text,
           delete_password: hash
         };
-        database.insertThread(obj)
+        database.insertThread(obj, false)
         .then(doc=>{
           res.formatter.ok(doc)
           //res.redirect(301, '/b/'+req.params.board); // Recomend ...

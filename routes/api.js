@@ -55,9 +55,9 @@ module.exports = function (app) {
           if(d.length==0) throw new Error('no thread found'); // sets Promise in 'catch-state'
           if(bcrypt.compareSync(req.body.delete_password, d[0].delete_password)) {
             database.deleteThread(req.body.thread_id).then(d=>'success');  
-          } else throw new Error('wrong password');
+          } else throw new Error('incorrect password');
         })
-        .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}))
+        .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: 'success'}))
         .catch(err=>res.formatter.badRequest([{details: err.message}]));
     })
     // I can report a thread and change it's reported value to true by sending a PUT request

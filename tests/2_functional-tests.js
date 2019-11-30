@@ -136,7 +136,7 @@ suite('Functional Tests', function() {
           assert.property(obj, 'data');
           assert.isTrue(obj.data.length==numThreads-1);
 
-          // 10 most recent thread
+          // [1] 10 most recent threads
           globalThreads.sort((a,b)=>{return a.now-b.now;});
           let first = globalThreads[0]; // will fail for 1..10
           let check=true;     
@@ -148,7 +148,7 @@ suite('Functional Tests', function() {
           assert.isTrue(check, "first (of "+numThreads+") is not within "+(numThreads-1)+" most recent threads");
          
          
-          // TODO: 3 most recent replies
+          // [2] 3 most recent replies
           let globThreadReplies; // thread with replies from globalThreads
           globalThreads.forEach(v=>{
             if(v.replys.length==numReplies) globThreadReplies = v;
@@ -169,36 +169,73 @@ suite('Functional Tests', function() {
         });
       });         
     });
-    
+
+    // I can delete a thread completely if I send a DELETE request to /api/threads/{board} and pass along the thread_id & delete_password. (Text response will be 'incorrect password' or 'success')
     suite('DELETE', function() {
+      test('Test PASSWORD-ERROR DELETE /api/threads/{board}', function(done) {
+       chai.request(server)
+        .delete('/api/threads/'+testBoard)
+        .send({thread_id: globalThreads[0]._id, delete_password: 'WRONG_PASSWORD'})
+        .end(function(err, res){
+          assert.equal(res.statusCode,400);
+          const obj = JSON.parse(res.text);
+          assert.equal(obj.errors[0].details, 'incorrect password');
+          done();
+       });        
+      });
       
+      test('Test PASSWORD-OK DELETE /api/threads/{board}', function(done) {
+       chai.request(server)
+        .delete('/api/threads/'+testBoard)
+        .send({thread_id: globalThreads[0]._id, delete_password: 'delete'+globalThreads[0].text.substring(4)})
+        .end(function(err, res){
+          assert.equal(res.statusCode,200);
+          const obj = JSON.parse(res.text);
+          assert.equal(obj.meta.details, 'success');
+          done();
+       });        
+      });
     });
     
+    // I can report a thread and change it's reported value to true by sending a PUT request to /api/threads/{board} and pass along the thread_id. (Text response will be 'success')
     suite('PUT', function() {
-      
+      test('Test report=true PUT /api/threads/{board}', function(done) {
+       chai.request(server)
+        .put('/api/threads/'+testBoard)
+        .send({thread_id: globalThreads[0]._id})
+        .end(function(err, res){
+          assert.equal(res.statusCode,200);
+          const obj = JSON.parse(res.text);
+          assert.equal(obj.meta.details, 'success');
+          done();
+       });         
+      });  
     });
     
 
   });
   
   suite('API ROUTING FOR /api/replies/:board', function() {
-    
+     // I can POST a reply to a thead on a specific board by passing form data text, delete_password, & thread_id to /api/replies/{board} and it will also update the bumped_on date to the comments date.  
     suite('POST', function() {
       
     });
-    
+
+    // I can GET an entire thread with all it's replies from /api/replies/{board}?thread_id={thread_id}. Also hiding the same fields.      
     suite('GET', function() {
       
     });
     
+    // I can report a reply and change it's reported value to true by sending a PUT request to /api/replies/{board} and pass along the thread_id & reply_id. (Text response will be 'success')      
     suite('PUT', function() {
       
     });
-    
+
+    // I can delete a post(just changing the text to '[deleted]') if I send a DELETE request to /api/replies/{board} and pass along the thread_id, reply_id, & delete_password. (Text response will be 'incorrect password' or 'success')      
     suite('DELETE', function() {
       
     });
-    
+
   });
 
 

@@ -83,7 +83,7 @@ module.exports = function (app) {
         }; 
         database.insertReply(req.body.thread_id, obj)
         .then(doc=>{
-          res.formatter.ok(doc)
+          res.formatter.ok(doc, {details: 'success'})
           //res.redirect(301, '/b/'+req.params.board+'/'+req.body.thread_id); // Recomend ...
         })
         .catch(err=>res.formatter.badRequest([{details: err.message}]));
@@ -108,17 +108,17 @@ module.exports = function (app) {
         .then(d=>{
           const sub = d.replys.id(req.body.reply_id);      
           if(bcrypt.compareSync(req.body.delete_password, sub.delete_password)) {
-            database.updateReply(req.body.thread_id, req.body.reply_id, 'text', '[deleted]').then(d=>'success')  
+            return database.updateReply(req.body.thread_id, req.body.reply_id, 'text', '[deleted]').then(d=>{return 'success'})  
           } else throw new Error('incorrect password');
          })
-        .then(d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}))
-        .catch(err=>res.formatter.badRequest([{details: err.message}]));
+        .then( d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}) )
+        .catch( err=>res.formatter.badRequest([{details: err.message}]) );
     })
     // I can report a reply and change it's reported value to true by sending a PUT request to /api/replies/{board}
     // and pass along the thread_id & reply_id. (Text response will be 'success')   
     .put( (req, res)=>{
       database.updateReply(req.body.thread_id, req.body.reply_id, 'reported', true)
-        .then(d=>res.formatter.ok(d))
+        .then(d=>res.formatter.ok(d, {details:'success'}))
         .catch(err=>res.formatter.badRequest([{details: err.message}]));
     });
 };

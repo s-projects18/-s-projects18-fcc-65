@@ -110,9 +110,8 @@ suite('Functional Tests', function() {
             else assert.isTrue(d2-d1>1000, "4 replies");
           
             // test these props eg in unit-test:
-            //assert.property(thread, 'delete_password', "delete_pasword for "+i);
-            //assert.property(thread, 'reported', "reported for "+i);
-            //assert.isTrue(thread.delete_password!==''); // !! true even on not existing props 
+            assert.notProperty(thread, 'delete_password', "delete_pasword for "+i);
+            assert.notProperty(thread, 'reported', "reported for "+i);
         });
         // there must be 1 thread having 4 replies, it could be the last but it must not be
         let hit = false;
@@ -143,13 +142,13 @@ suite('Functional Tests', function() {
           let threadReplies;
           obj.data.forEach((v,i)=>{
             if(v._id==first._id) check=false;
-            if(v.replys.length==numReplies-1) threadReplies = v; // get thread with replies for next check
+            if(v.replys.length==numReplies-1) threadReplies = v; // get thread with 3 replies for next check
           });
-          assert.isTrue(check, "first (of "+numThreads+") is not within "+(numThreads-1)+" most recent threads");
+          assert.isTrue(check, "first/oldest (of "+numThreads+") is not within "+(numThreads-1)+" most recent threads");
          
          
           // [2] 3 most recent replies
-          let globThreadReplies; // thread with replies from globalThreads
+          let globThreadReplies; // thread with replies from 11 globalThreads
           globalThreads.forEach(v=>{
             if(v.replys.length==numReplies) globThreadReplies = v;
           });
@@ -164,7 +163,7 @@ suite('Functional Tests', function() {
           threadReplies.replys.forEach(v=>{
             if(v._id==globThreadReplies.replys[0]._id) checkR=false; // will fail for: [1] [2] [3]
           });
-          assert.isTrue(checkR, "first (of "+numReplies+") is not within "+(numReplies-1)+" most recent replies");
+          assert.isTrue(checkR, "first/oldest (of "+numReplies+") is not within "+(numReplies-1)+" most recent replies");
           done();
         });
       });         
@@ -210,30 +209,115 @@ suite('Functional Tests', function() {
           done();
        });         
       });  
-    });
-    
+    });    
 
   });
   
+  
   suite('API ROUTING FOR /api/replies/:board', function() {
+    let globThreadId;
+    let globThreadBumpedOn;
+    let globReplyId;
+    let globReplyDelete = 'delete-reply';
+    
+    suiteSetup(function() {
+      // we must request this within suiteSetup or globalThreads will be empty (asynchroneous stuff!) 
+      // (we could also create a new thread here)
+      globThreadId = globalThreads[1]._id;
+      globThreadBumpedOn = globalThreads[1].bumped_on;
+    }); 
+    
      // I can POST a reply to a thead on a specific board by passing form data text, delete_password, & thread_id to /api/replies/{board} and it will also update the bumped_on date to the comments date.  
     suite('POST', function() {
-      
+      test('Test NEW REPLY POST /api/replies/{board}', function(done) {
+        chai.request(server)
+          .post('/api/replies/'+testBoard)
+          .send({text:'text-reply', thread_id: globThreadId, delete_password: globReplyDelete})
+          .end(function(err, res){
+            assert.equal(res.statusCode,200);
+            const obj = JSON.parse(res.text);
+            assert.equal(obj.meta.details, 'success');
+            const thread = obj.data[0];
+            const reply = obj.data[0].replys[0];
+            assert.property(reply, 'created_on');
+            assert.notProperty(reply, 'delete_password');
+            assert.notProperty(reply, 'reported');
+            assert.equal(reply.text, 'text-reply'); 
+         
+            assert.property(thread, 'bumped_on');
+            assert.notEqual(thread.bumped_on, globThreadBumpedOn, 'bumped_on has changed');
+
+            globReplyId = reply._id;
+            done();
+        });         
+      });
+           
     });
 
     // I can GET an entire thread with all it's replies from /api/replies/{board}?thread_id={thread_id}. Also hiding the same fields.      
     suite('GET', function() {
-      
+      test('Test GET entire thread /api/replies/{board}?thread_id={thread_id}', function(done) {
+        let threadId; // take thread with 4 replies from 11 globalThreads
+        globalThreads.forEach(v=>{
+          if(v.replys.length==numReplies) threadId = v._id;
+        });
+
+        chai.request(server)
+          .get('/api/replies/'+testBoard)
+          .query({thread_id: threadId})
+          .end(function(err, res){
+            assert.equal(res.statusCode,200);
+            const thread = JSON.parse(res.text).data[0];
+            assert.notProperty(thread, 'reported');
+            assert.notProperty(thread, 'delete_password');
+            assert.equal(thread.replys.length, numReplies);
+            done();
+        });         
+      });      
     });
     
     // I can report a reply and change it's reported value to true by sending a PUT request to /api/replies/{board} and pass along the thread_id & reply_id. (Text response will be 'success')      
     suite('PUT', function() {
-      
+      test('Test PUT reported=true /api/replies/{board}', function(done) {
+        chai.request(server)
+          .put('/api/replies/'+testBoard)
+          .send({thread_id: globThreadId, reply_id: globReplyId})
+          .end(function(err, res){
+            assert.equal(res.statusCode,200);
+            const obj = JSON.parse(res.text);
+            assert.equal(obj.meta.details, 'success');
+            assert.notProperty(obj.data[0].replys, 'reported');
+            assert.notProperty(obj.data[0].replys, 'delete_password');
+            done();
+        });         
+      });       
     });
 
     // I can delete a post(just changing the text to '[deleted]') if I send a DELETE request to /api/replies/{board} and pass along the thread_id, reply_id, & delete_password. (Text response will be 'incorrect password' or 'success')      
     suite('DELETE', function() {
+      test('Test DELETE PASSWORD=WRONG reply /api/replies/{board}', function(done) {
+        chai.request(server)
+          .delete('/api/replies/'+testBoard)
+          .send({thread_id: globThreadId, reply_id: globReplyId, delete_password:'WRONG_PASSWORD'})
+          .end(function(err, res){
+            assert.equal(res.statusCode,400);
+            const obj = JSON.parse(res.text);
+            assert.equal(obj.errors[0].details, 'incorrect password');
+            done();
+        });         
+      }); 
       
+      test('Test DELETE PASSWORD=OK reply /api/replies/{board}', function(done) {
+        chai.request(server)
+          .delete('/api/replies/'+testBoard)
+          .send({thread_id: globThreadId, reply_id: globReplyId, delete_password:globReplyDelete})
+          .end(function(err, res){
+            assert.equal(res.statusCode,200);
+            const obj = JSON.parse(res.text);
+            assert.equal(obj.meta.details, 'success');
+            done();
+        });         
+      });       
     });
 
   });

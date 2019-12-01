@@ -48,9 +48,9 @@ const replysSchema = new Schema({
     // if you add validator later: error is thrown on existing entrys
     validate: {
       validator: function(v) {
-        return /^[a-zA-Z0-9 \-_()]+$/.test(v); // mask: -
+        return /^[a-zA-Z0-9 \-_()\[\]]+$/.test(v); // mask: -
       },
-      message: props => `${props.value}: only letters, numbers and(-_/)  are allowed`
+      message: props => `${props.value}: only letters, numbers and(-_/[])  are allowed`
     },  
   }, //*
   delete_password:{type: String, required:true}, //*    
@@ -131,6 +131,7 @@ exports.getThreads = (board, limitThreads, limitReplys) => {
             const b1 = new Date(b.created_on);
             return a1.getTime()-b1.getTime();
           });
+          v.replycount = v.replys.length;
           v.replys = v.replys.slice(-limitReplys);
           return v;
         }); // bad-way: should be possible with aggregate...

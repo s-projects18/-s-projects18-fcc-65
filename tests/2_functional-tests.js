@@ -78,7 +78,7 @@ function createThreads() {
 
 suite('Functional Tests', function() {
   suiteSetup(function() {
-    // delete testboard (failures from old testing)
+    // delete testboard (failures from old testing -> maybe not everything is deleted)
     database.deleteBoard(testBoard);
     
     // https://ethereum.stackexchange.com/questions/19641/how-to-set-the-timeout-for-truffle-tests-before-block
@@ -86,7 +86,12 @@ suite('Functional Tests', function() {
     return createThreads();
   });  
   
+  suiteTeardown(function() {
+    // finally delete al testboard-entries
+    database.deleteBoard(testBoard);
+  });
   
+  // -------------------- THREADS -----------------------
   suite('API ROUTING FOR /api/threads/:board', function() {   
     suite('POST', function() {
       /* I can POST a thread to a specific message board by passing form data text and delete_password
@@ -214,6 +219,7 @@ suite('Functional Tests', function() {
   });
   
   
+  // ------------------- REPLIES -------------------
   suite('API ROUTING FOR /api/replies/:board', function() {
     let globThreadId;
     let globThreadBumpedOn;

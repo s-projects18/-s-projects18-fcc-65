@@ -111,7 +111,7 @@ module.exports = function (app) {
             return database.updateReply(req.body.thread_id, req.body.reply_id, 'text', '[deleted]').then(d=>{return 'success'})  
           } else throw new Error('incorrect password');
          })
-        .then( d=>res.formatter.ok({_id:req.body.thread_id}, {details: d}) )
+        .then( d=>res.formatter.ok({_id:req.body.reply_id}, {details: d}) )
         .catch( err=>res.formatter.badRequest([{details: err.message}]) );
     })
     // I can report a reply and change it's reported value to true by sending a PUT request to /api/replies/{board}

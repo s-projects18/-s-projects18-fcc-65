@@ -88,6 +88,11 @@ app.route('/')
     res.sendFile(process.cwd() + '/views/index.html');
   });
 
+app.route('/user-stories')
+  .get(function (req, res) {
+    res.sendFile(process.cwd() + '/views/user-stories.html');
+  });
+
 //For FCC testing purposes
 fccTestingRoutes(app);
 

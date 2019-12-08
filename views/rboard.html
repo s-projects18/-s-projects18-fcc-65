@@ -1,0 +1,110 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Simple react version</title>
+  <meta name="description" content="A FCC learning project">
+  <link id="favicon" rel="icon" href="/public/favicon-app.ico" type="image/x-icon">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/public/rboard.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/16.8.4/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/16.8.4/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.1/redux.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-redux/6.0.1/react-redux.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.core.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+  <script src="/public/rboard.js" type="text/babel"></script>     
+</head>
+<body>
+<div id="main" style="display:none;">-</div>
+  
+<div id="board" class="board width">
+  <h1>Board: general</h1>
+  <div class="addthread">
+    <form>
+      <h2>Create new thread</h2>
+      <label><span>Text</span><textarea name="text"></textarea></label>
+      <label><span>Delete Password</span><input type="text" name="delete_password"></label>
+      <span class="submit"><button class="button" type="submit">add thread</button></span>
+    </form>
+  </div>
+  
+  <div class="threadlist">
+    <div class="reply is-thread">
+      <p class="date">12.12.2012 19:36</p>
+      <p class="text">
+        thread1 Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum 
+      </p>
+      <p class="buttons">
+        <button class="button button-small" title="report that thread">report</button>
+        <button class="button button-small" title="delete that thread" onclick="prompt('Please enter password')">delete*</button>
+      </p>
+    </div>
+    <div class="reply">
+      <p class="date">12.12.2012 19:36</p>
+      <p class="text">
+        REPLY Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum 
+      </p>
+      <p class="buttons">
+        <button class="button button-small" title="report that reply">report</button>
+        <button class="button button-small" title="delete that reply">delete</button>
+      </p>
+    </div> 
+    <div class="reply last">
+      <p class="date">12.12.2012 19:36</p>
+      <p class="text">
+        REPLY Lorem ipsum Lorem ipsum ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum 
+      </p>      
+      <p class="buttons">
+        <button class="button button-small" title="report that reply">report</button>
+        <button class="button button-small" title="delete that reply">delete</button>
+      </p>
+    </div>   
+    <div class="reply toggle-list">
+      <p><button class="button button-middle" title="Show full list of this thread">show all 7 replys</button></p>      
+    </div>
+    <div class="addreply">
+      <form>
+        <label><span>Text</span><textarea name="text"></textarea></label>
+        <label><span>Delete Password</span><input type="text" name="delete_password"></label>
+        <span class="submit"><button class="button" type="submit">add reply</button></span>
+      </form>
+    </div>    
+  </div>
+  
+  <div class="threadlist">
+    <div class="reply is-thread">
+      <p class="date">12.12.2012 19:36</p>
+      <p class="text">
+        thread1 Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum 
+      </p>
+      <p class="buttons">
+        <button class="button button-small" title="report that thread">report</button>
+        <button class="button button-small" title="delete that thread">delete</button>
+      </p>
+    </div>
+    <div class="reply last">
+      <p class="date">12.12.2012 19:36</p>
+      <p class="text">
+        REPLY Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum Lorem ipsum 
+      </p>
+      <p class="buttons">
+        <button class="button button-small" title="report that reply">report</button>
+        <button class="button button-small" title="delete that reply">delete</button>
+      </p>
+    </div>  
+    <div class="addreply">
+      <form>
+        <label><span>Text</span><textarea name="text"></textarea></label>
+        <label><span>Delete Password</span><input type="text" name="delete_password"></label>
+        <span class="submit"><button class="button" type="submit">add reply</button></span>
+      </form>
+    </div>    
+  </div>
+  
+</div>
+
+</body>
+</html>

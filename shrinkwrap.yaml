@@ -6,7 +6,9 @@ dependencies:
   cors: 2.8.5
   express: 4.17.1
   express-response-formatter: 1.1.0
+  file-system: 2.2.2
   helmet: 3.21.2
+  marked: 0.7.0
   mocha: 3.5.3
   mongodb: 3.3.3
   mongoose: 5.7.9
@@ -412,6 +414,7 @@ packages:
     resolution:
       integrity: sha1-ZSKUwUZR2yj6k70tX/KYOk8IxjY=
   /core-js/2.6.10:
+    deprecated: 'core-js@<3.0 is no longer maintained and not recommended for usage due to the number of issues. Please, upgrade your dependencies to the actual version of core-js@3.'
     dev: false
     requiresBuild: true
     resolution:
@@ -707,6 +710,19 @@ packages:
       node: '>=4.0.0'
     resolution:
       integrity: sha512-ZtijOTFN7TzCujt1fnNhfWPFPSHeZkesff9AXZj+UEjYBynWNUIYpC87Ve4wHzyexQsImicLu7WsC2LHq7/xrQ==
+  /file-match/1.0.2:
+    dependencies:
+      utils-extend: 1.0.8
+    dev: false
+    resolution:
+      integrity: sha1-ycrSZdLIrfOoFHWw30dYWQafrvc=
+  /file-system/2.2.2:
+    dependencies:
+      file-match: 1.0.2
+      utils-extend: 1.0.8
+    dev: false
+    resolution:
+      integrity: sha1-fWWDPjojR9zZVqgTxncVPtPt2Yc=
   /finalhandler/1.1.2:
     dependencies:
       debug: 2.6.9
@@ -1219,6 +1235,13 @@ packages:
       node: '>=0.10.0'
     resolution:
       integrity: sha1-MKCy2jj3N3DoKUoNIuZiXtd9AJc=
+  /marked/0.7.0:
+    dev: false
+    engines:
+      node: '>=0.10.0'
+    hasBin: true
+    resolution:
+      integrity: sha512-c+yYdCZJQrsRjTPhUx7VKkApw9bwDkNbHUKo1ovgcfDjb2kc8rLuRbIFyXL5WOEUwzSSKo3IXpph2K6DqB/KZg==
   /media-typer/0.3.0:
     dev: false
     engines:
@@ -2172,6 +2195,10 @@ packages:
     dev: false
     resolution:
       integrity: sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=
+  /utils-extend/1.0.8:
+    dev: false
+    resolution:
+      integrity: sha1-zP17ZFQPjpDuIe7Fd2nQZRyril8=
   /utils-merge/1.0.1:
     dev: false
     engines:
@@ -2308,7 +2335,9 @@ specifiers:
   cors: ^2.8.1
   express: ^4.14.0
   express-response-formatter: ^1.1.0
+  file-system: ^2.2.2
   helmet: ^3.1.0
+  marked: ^0.7.0
   mocha: ^3.2.0
   mongodb: ^3.3.2
   mongoose: ^5.7.1

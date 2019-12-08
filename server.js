@@ -11,6 +11,9 @@ var fccTestingRoutes  = require('./routes/fcctesting.js');
 var runner            = require('./test-runner');
 var helmet            = require('helmet');
 
+var fs = require('file-system');
+var marked            = require('marked');
+
 // using express-response-formatter
 // https://github.com/aofleejay/express-response-formatter
 // { meta: ..., data: ...,  error: ... }
@@ -72,6 +75,23 @@ app.use((req, res, next)=>{
 
 
 // ----------------- get/post functions -----------------------
+// show html-version of README.md
+app.get('/readme', function(req, res) {
+  var path = __dirname + '/README.md';
+  var file = fs.readFileSync(path, 'utf8');
+  res.send(marked(file.toString()));
+});
+
+app.route('/rboard/:board/')
+  .get(function (req, res) {
+    res.sendFile(process.cwd() + '/views/rboard.html');
+  });
+
+app.route('/rboard')
+  .get(function (req, res) {
+    res.redirect('/rboard/general'); // default board
+  });
+
 //Sample front-end
 app.route('/b/:board/')
   .get(function (req, res) {
@@ -80,6 +100,10 @@ app.route('/b/:board/')
 app.route('/b/:board/:threadid')
   .get(function (req, res) {
     res.sendFile(process.cwd() + '/views/thread.html');
+  });
+app.route('/b')
+  .get(function (req, res) {
+    res.redirect('/b/general'); // default board
   });
 
 //Index page (static HTML)

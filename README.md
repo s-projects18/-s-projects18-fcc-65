@@ -16,7 +16,7 @@ It's a node.js project so it can also be installed per console.
 
 | METHOD | URL + PARMS          |  ARGS                            | STATUS RETURNED |  DATA RETURNED |
 | ------ | -------------------- | -------------------------------- | --------------- | -------------- |
-| POST   | /api/threads/{board} | text, delete_password, thread_id | 200, 400, 500   | new thread |
+| POST   | /api/threads/{board} | text, delete_password | 200, 400, 500   | new thread |
 | POST   | /api/replies/{board} | text, delete_password, thread_id | 200, 400, 500   | thread with new reply |
 | GET    | /api/threads/{board} | - | 200, 400, 500   | array of most recent 10 bumped threads with most recent 3 replies |
 | GET    | /api/replies/{board}?thread_id={thread_id} | - | 200, 400, 500   | entire thread with all it's replies |

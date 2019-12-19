@@ -85,6 +85,8 @@ h1, h2, h3 {
 }
 .board form > label *:last-child {
   width:80%;
+  min-width:80%;
+  max-width:80%;
 }
 .board form > label * {
   padding:0.2rem;
@@ -100,6 +102,13 @@ h1, h2, h3 {
   cursor:pointer;
 }
 
+/* message */
+.message {
+  margin-top:2rem;
+  border:2px solid var(--background-1);
+  border-radius: var(--bradius);
+  text-align:center;
+}
 
 /* thread */
 .addthread {

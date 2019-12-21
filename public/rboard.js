@@ -13,8 +13,7 @@ const {	Provider } = ReactRedux;
 // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 // method: POST, PUT, DELETE
 async function fetchData(method, url = '', data = {}) {
-  console.log("data", data)
-  const response = await fetch(url, {
+  const obj = {
     method: method, 
     mode: 'cors', // no-cors, *cors, same-origin
     cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
@@ -24,9 +23,10 @@ async function fetchData(method, url = '', data = {}) {
       // 'Content-Type': 'application/x-www-form-urlencoded',
     },
     redirect: 'follow', // manual, *follow, error
-    referrer: 'no-referrer', // no-referrer, *client
-    body: JSON.stringify(data) // body data type must match "Content-Type" header
-  });
+    referrer: 'no-referrer' // no-referrer, *client
+  };
+  if(method=="POST") obj.body = JSON.stringify(data) // body data type must match "Content-Type" header
+  const response = await fetch(url, obj);
   return await response.json(); // parses JSON response into native JavaScript objects
 }
 
@@ -34,34 +34,20 @@ async function fetchData(method, url = '', data = {}) {
 // ========= REACT =============================
 // action-types -------------------------------------
 const ADD_THREAD = "ADD_THREAD";
-const GET_LIST = "GET_LIST";
+const ADD_REPLY = "ADD_REPLY";
+const GET_ALL_LIST = "GET_ALL_LIST";
 
 // returns action object
 function receiveAction(action, json, board) {
-console.log("receiveAction")
+console.log("receiveAction", action)
   return {
     type: action,
     board: board,
-    posts: json.data,
+    data: json.data,
     receivedAt: Date.now()
   }
 }
-// this function is called by dispatcher (instead of action-object)
-function fetchAction(action, data, board = 'general') {
-  return function(dispatch) {
-    return fetchData('POST', 'https://s-projects18-fcc-65.glitch.me/api/threads/'+board, data)
-      .then(
-        response => {
-          console.log(777, response) // ??? CHECK 400 on fetch
-          response.json()
-        },
-        error => console.log('An error occurred.', error)
-      )
-      .then(json =>
-        dispatch(receiveAction(action, json, board)) // return action-object
-      )
-  }
-}
+
 
 
 // (1) Headline --------------------------------------
@@ -129,6 +115,66 @@ const NewThread = ReactRedux.connect(mapNewThreadStateToProps, newThreadDispatch
 
 
 
+// () Threadlist -----------------------------------
+const mapNewThreadListStateToProps = (state) => {return {
+  allThreads: state.allThreads
+}}
+
+
+function ThreadListDispatch(dispatch) {
+  return {
+    setVal: (text, delete_password, thread_id) => dispatch(fetchAction(ADD_REPLY, {text: text, delete_password: delete_password, thread_id: thread_id})),
+    getAllList: () => dispatch(fetchAction(GET_ALL_LIST, {}))
+  };
+}
+
+class ThreadListClass extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { // do we need this???
+      allThreads: []
+    };
+  }
+  
+  // get list on load
+  componentDidMount() {
+    this.props.getAllList();
+  }
+
+  // ??? OWN CHILD FOR ADD REPLY: clean react state!!!
+  handleSubmit(e) {
+    e.preventDefault();
+    this.props.setVal(this.state.text, this.state.delete_password, this.state.thread_id); // dispatch
+    this.setState({text: '', delete_password: '', thread_id: ''});
+  }
+  
+  render() {
+    return (
+      <React.Fragment>
+        {this.props.allThreads.map((thread,i)=>{
+          console.log(888, thread)
+          return (
+            <React.Fragment>
+              <p>DUMMY-CHILD-COMPONENT</p>
+              <div class="addreply">
+                <form>
+                  <label><span>Text</span><textarea name="text"></textarea></label>
+                  <label><span>Delete Password</span><input type="text" name="delete_password" /></label>
+                  <span class="submit"><button class="button" type="submit">add reply</button></span>
+                  <input type="text" name="thread_id" value={thread._id} />
+                </form>
+              </div> 
+            </React.Fragment>
+          );
+        })}
+      </React.Fragment>
+    );    
+  }
+}
+const ThreadList = ReactRedux.connect(mapNewThreadListStateToProps, ThreadListDispatch)(ThreadListClass);
+
+
+
 // ======== REDUX ===============================
 const defaultState = {
   board: "unknown",
@@ -136,8 +182,10 @@ const defaultState = {
   labelText:"Text",
   labelDelete: "Delete Password",
   labelAddThread: "add thread",
-  message: ''
+  message: '',
+  allThreads: []
 }
+
 const reducer = (state=defaultState, action) => {
   //const cState = Object.assign({}, state); // -> no deep copy!
   const cState = JSON.parse( JSON.stringify(state) );
@@ -145,15 +193,32 @@ const reducer = (state=defaultState, action) => {
   
   if(action.type==ADD_THREAD) {
     cState.message="success";
-  } else if(action.type==GET_LIST) {
-    console.log("get list")
-    console.log(action.posts)
+    console.log(action.data)
+  } else if(action.type==GET_ALL_LIST) {
+    cState.allThreads = action.data;
   }
   
-  cl(777,action);
+  cl("store",action);
   return cState;
 }
 const store = Redux.createStore(reducer, Redux.applyMiddleware(ReduxThunk.default));
+
+
+// this function is called by dispatcher (instead of action-object)
+// something like a pre-store for async-actions...
+// eg click-event -> dispatch:fetchAction -> dispatch:receiveAction -> store
+function fetchAction(action, data, board = 'general') {
+  return function(dispatch) {
+    let mt = 'POST';
+    if([GET_ALL_LIST].indexOf(action)!==-1) mt = 'GET'; 
+    return fetchData(mt, 'https://s-projects18-fcc-65.glitch.me/api/threads/'+board, data)
+      .then(json =>
+        dispatch(receiveAction(action, json, board)) // return action-object
+      )
+      .catch(err => console.log(err))
+  }
+}
+
 
 
 // ======= main =============================
@@ -162,6 +227,7 @@ ReactDOM.render(
 	<Provider store={store}>
     <Headline />
     <NewThread />
+    <ThreadList />
     <Message />
   </Provider>,
 	document.getElementById('main')

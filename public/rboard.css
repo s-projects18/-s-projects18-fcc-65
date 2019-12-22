@@ -143,6 +143,9 @@ h1, h2, h3 {
 .reply.last {
   border-bottom-width:0;
 }
+.reply.is-thread {
+  background-color: var(--background-2);
+}
 .reply.is-thread .text {}
 .reply .date {
   font-weight:bold;
@@ -158,10 +161,10 @@ h1, h2, h3 {
 }
 @media only screen and (min-width: 600px) {
   .reply .text {
-    width:90%;
+    width:91%;
   }
   .reply .buttons {
-    width:10%;
+    width:9%;
     text-align:right;
     margin-top:0;
   }

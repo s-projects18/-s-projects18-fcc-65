@@ -1,10 +1,4 @@
-var cl = console.log;
-
-// just by including react-redux '<Provider>' is NOT available
-// add it like this:
-// (1) <ReactRedux.Provider>
-// (or 2) const Provider = ReactRedux.Provider;
-// (or 3)
+const cl = console.log;
 const {	Provider } = ReactRedux;
 
 
@@ -59,6 +53,7 @@ const Headline = ReactRedux.connect(mapHeadlineStateToProps)(HeadlineObj); // no
 const mapMessageStateToProps = (state) => {return { message: state.message}}
 const MessageObj = (props) => (props.message=='')  ? null: <p className="message">{props.message}</p>;
 const Message = ReactRedux.connect(mapMessageStateToProps)(MessageObj);
+
 
 // (3) New Thread -----------------------------------
 const mapNewThreadStateToProps = (state) => {return {
@@ -115,15 +110,13 @@ const NewThread = ReactRedux.connect(mapNewThreadStateToProps, newThreadDispatch
 
 
 
-// () Threadlist -----------------------------------
+// (4) Threadlist (parent) -----------------------------------
 const mapNewThreadListStateToProps = (state) => {return {
   allThreads: state.allThreads
 }}
 
-
 function ThreadListDispatch(dispatch) {
   return {
-    setVal: (text, delete_password, thread_id) => dispatch(fetchAction(ADD_REPLY, {text: text, delete_password: delete_password, thread_id: thread_id})),
     getAllList: () => dispatch(fetchAction(GET_ALL_LIST, {}))
   };
 }
@@ -131,40 +124,27 @@ function ThreadListDispatch(dispatch) {
 class ThreadListClass extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { // do we need this???
-      allThreads: []
-    };
   }
   
   // get list on load
   componentDidMount() {
     this.props.getAllList();
   }
-
-  // ??? OWN CHILD FOR ADD REPLY: clean react state!!!
-  handleSubmit(e) {
-    e.preventDefault();
-    this.props.setVal(this.state.text, this.state.delete_password, this.state.thread_id); // dispatch
-    this.setState({text: '', delete_password: '', thread_id: ''});
-  }
-  
+ 
   render() {
     return (
       <React.Fragment>
-        {this.props.allThreads.map((thread,i)=>{
-          console.log(888, thread)
+        {this.props.allThreads.map((thread)=>{
           return (
-            <React.Fragment>
-              <p>DUMMY-CHILD-COMPONENT</p>
-              <div class="addreply">
-                <form>
-                  <label><span>Text</span><textarea name="text"></textarea></label>
-                  <label><span>Delete Password</span><input type="text" name="delete_password" /></label>
-                  <span class="submit"><button class="button" type="submit">add reply</button></span>
-                  <input type="text" name="thread_id" value={thread._id} />
-                </form>
-              </div> 
-            </React.Fragment>
+            <div className="threadlist">
+              <ThreadListElement data-class="is-thread" data={thread} />
+              {thread.replys.map((reply, i, a)=>{
+                if(i<a.length-1) return (<ThreadListElement data={reply} />);
+                else return (<ThreadListElement data-class="last" data={reply} />);
+              })}
+              <p>DUMMY SHOW ALL</p>
+              <NewReply thread_id={thread._id} />
+            </div>
           );
         })}
       </React.Fragment>
@@ -172,6 +152,79 @@ class ThreadListClass extends React.Component {
   }
 }
 const ThreadList = ReactRedux.connect(mapNewThreadListStateToProps, ThreadListDispatch)(ThreadListClass);
+
+
+// (5) Add Reply (child) -----------------------------------
+function NewReplyDispatch(dispatch) {
+  return {
+    setVal: (text, delete_password, thread_id) => dispatch(fetchAction(ADD_REPLY, {text: text, delete_password: delete_password, thread_id: thread_id}))
+  };
+}
+
+class NewReplyClass extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { 
+      text: '',
+      delete_password: '',
+      thread_id: this.props.thread_id
+    };
+    this.handleSubmit = this.handleSubmit.bind(this);
+    this.set = this.set.bind(this);
+  }
+
+  handleSubmit(e) {
+    e.preventDefault();
+    this.props.setVal(this.state.text, this.state.delete_password, this.state.thread_id); // dispatch
+    this.setState({text: '', delete_password: ''}); // thread_id will not change
+  }
+  
+  set(e) { // local state only
+    let obj = {};
+    obj[e.target.name] = e.target.value;
+    this.setState(obj);
+  }
+  
+  render() {
+    return (
+      <div class="addreply">
+        <form onSubmit={this.handleSubmit}>
+          <label><span>Text</span><textarea onChange={this.set} value={this.state.text} name="text"></textarea></label>
+          <label><span>Delete Password</span><input type="text" onChange={this.set} value={this.state.delete_password} name="delete_password" /></label>
+          <span class="submit"><button class="button" type="submit">add reply</button></span>
+          <input type="text" onChange={this.set} name="thread_id" value={this.state.thread_id} />
+        </form>
+      </div> 
+    );    
+  }
+}
+const NewReply = ReactRedux.connect(null, NewReplyDispatch)(NewReplyClass);
+
+
+// (6) Thread List Element (child) -----------------------------------
+class ThreadListElementClass extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+ 
+  render() {
+    const cl = ['reply'];
+    if(typeof this.props['data-class'] !== 'undefined') cl.push(this.props['data-class']);
+    let cls = cl.join(' ');
+    return (
+      <div className={cls}>
+        <p className="date">11 {this.props.data.created_on}</p>
+        <p className="text">22 {this.props.data.text}</p>
+        <p className="buttons">
+          <button className="button button-small" title="report that reply" data-id={this.props.data._id}>report</button>
+          <button className="button button-small" title="delete that reply" data-id={this.props.data._id}>delete</button>
+        </p>
+      </div> 
+    );    
+  }
+}
+const ThreadListElement = ReactRedux.connect(null, null)(ThreadListElementClass);
+
 
 
 
@@ -186,38 +239,50 @@ const defaultState = {
   allThreads: []
 }
 
-const reducer = (state=defaultState, action) => {
-  //const cState = Object.assign({}, state); // -> no deep copy!
-  const cState = JSON.parse( JSON.stringify(state) );
-  cState.message="";
-  
-  if(action.type==ADD_THREAD) {
-    cState.message="success";
-    console.log(action.data)
-  } else if(action.type==GET_ALL_LIST) {
-    cState.allThreads = action.data;
-  }
-  
-  cl("store",action);
-  return cState;
-}
-const store = Redux.createStore(reducer, Redux.applyMiddleware(ReduxThunk.default));
 
-
-// this function is called by dispatcher (instead of action-object)
-// something like a pre-store for async-actions...
+// [1] this function is called by dispatcher (instead of action-object)
+// something like a 'pre-store' for async-actions
 // eg click-event -> dispatch:fetchAction -> dispatch:receiveAction -> store
 function fetchAction(action, data, board = 'general') {
   return function(dispatch) {
-    let mt = 'POST';
+    let mt = 'POST'; // method-check
     if([GET_ALL_LIST].indexOf(action)!==-1) mt = 'GET'; 
-    return fetchData(mt, 'https://s-projects18-fcc-65.glitch.me/api/threads/'+board, data)
+    
+    let pt = 'threads'; // path-check
+    if([ADD_REPLY].indexOf(action)!==-1) pt = 'replies';
+    
+    return fetchData(mt, 'https://s-projects18-fcc-65.glitch.me/api/'+pt+'/'+board, data)
+      .then(json => {
+        // refresh threadlist -> not automatic on async-stuff
+        // TODO: check - is this the right way?
+        if([ADD_REPLY, ADD_THREAD].indexOf(action)!==-1) dispatch(fetchAction(GET_ALL_LIST, {})); 
+        return json;
+      })
       .then(json =>
         dispatch(receiveAction(action, json, board)) // return action-object
       )
       .catch(err => console.log(err))
   }
 }
+
+
+// [2] handles only synchroneous stuff (async -> fetchAction)
+const reducer = (state=defaultState, action) => {
+  const cState = JSON.parse( JSON.stringify(state) );
+  cState.message=""; // reset
+  
+  if(action.type==ADD_THREAD) {
+    cState.message="success";
+  } else if(action.type==GET_ALL_LIST) {
+    cState.allThreads = action.data;
+  } else if(action.type==ADD_REPLY) {
+    cState.message="success";
+  }
+  
+  cl("store",action);
+  return cState;
+}
+const store = Redux.createStore(reducer, Redux.applyMiddleware(ReduxThunk.default));
 
 
 

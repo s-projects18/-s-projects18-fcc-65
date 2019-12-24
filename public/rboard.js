@@ -5,7 +5,7 @@ const {	Provider } = ReactRedux;
 // ========= HELPER =============================
 // fetch-helper
 // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-// method: POST, PUT, DELETE
+// method: POST, PUT, DELETE, GET
 async function fetchData(method, url = '', data = {}) {
   const obj = {
     method: method, 
@@ -19,7 +19,7 @@ async function fetchData(method, url = '', data = {}) {
     redirect: 'follow', // manual, *follow, error
     referrer: 'no-referrer' // no-referrer, *client
   };
-  if(method=="POST") obj.body = JSON.stringify(data) // body data type must match "Content-Type" header
+  if(method=="POST" || method=="PUT") obj.body = JSON.stringify(data) // body data type must match "Content-Type" header
   const response = await fetch(url, obj);
   return await response.json(); // parses JSON response into native JavaScript objects
 }
@@ -27,9 +27,12 @@ async function fetchData(method, url = '', data = {}) {
 
 // ========= REACT =============================
 // action-types -------------------------------------
-const ADD_THREAD = "ADD_THREAD";
+const ADD_THREAD = "ADD_THREAD"; // async
 const ADD_REPLY = "ADD_REPLY";
 const GET_ALL_LIST = "GET_ALL_LIST";
+const GET_ALL_REPLYS = "GET_ALL_REPLYS";
+
+const RESET_ALL_REPLYS = "RESET_ALL_REPLYS"; // sync
 
 // returns action object
 function receiveAction(action, json, board) {
@@ -112,7 +115,8 @@ const NewThread = ReactRedux.connect(mapNewThreadStateToProps, newThreadDispatch
 
 // (4) Threadlist (parent) -----------------------------------
 const mapNewThreadListStateToProps = (state) => {return {
-  allThreads: state.allThreads
+  allThreads: state.allThreads,
+  allThreadsComplete: state.allThreadsComplete
 }}
 
 function ThreadListDispatch(dispatch) {
@@ -135,14 +139,21 @@ class ThreadListClass extends React.Component {
     return (
       <React.Fragment>
         {this.props.allThreads.map((thread)=>{
+          let replys = thread.replys;
+          const t = this.props.allThreadsComplete.filter(v=>{
+            if(v._id==thread._id) return true;
+            return false;
+          });
+          if(t.length==1) replys=t[0].replys;
+          
           return (
             <div className="threadlist">
-              <ThreadListElement data-class="is-thread" data={thread} />
-              {thread.replys.map((reply, i, a)=>{
-                if(i<a.length-1) return (<ThreadListElement data={reply} />);
-                else return (<ThreadListElement data-class="last" data={reply} />);
+              <ThreadListElement data-class="is-thread" thread_id={thread._id} data={thread} />
+              {replys.map((reply, i, a)=>{
+                if(i<a.length-1) return (<ThreadListElement  thread_id={thread._id} data={reply} />);
+                else return (<ThreadListElement data-class="last" thread_id={thread._id} data={reply} />);
               })}
-              <p>DUMMY SHOW ALL</p>
+              <ShowAll numreplys={thread.replys.length} replycount={thread.replycount} thread_id={thread._id} />
               <NewReply thread_id={thread._id} />
             </div>
           );
@@ -202,6 +213,10 @@ const NewReply = ReactRedux.connect(null, NewReplyDispatch)(NewReplyClass);
 
 
 // (6) Thread List Element (child) -----------------------------------
+const mapThreadListElementStateToProps = (state) => {return {
+  allThreads: state.allThreads
+}}
+
 class ThreadListElementClass extends React.Component {
   constructor(props) {
     super(props);
@@ -211,20 +226,77 @@ class ThreadListElementClass extends React.Component {
     const cl = ['reply'];
     if(typeof this.props['data-class'] !== 'undefined') cl.push(this.props['data-class']);
     let cls = cl.join(' ');
+
+    const data = this.props['data'];
+   
     return (
       <div className={cls}>
-        <p className="date">11 {this.props.data.created_on}</p>
-        <p className="text">22 {this.props.data.text}</p>
+        <p className="date">11 {data.created_on}</p>
+        <p className="text">22 {data.text}</p>
         <p className="buttons">
-          <button className="button button-small" title="report that reply" data-id={this.props.data._id}>report</button>
-          <button className="button button-small" title="delete that reply" data-id={this.props.data._id}>delete</button>
+          <button className="button button-small" title="report that reply" data-id={data._id}>report</button>
+          <button className="button button-small" title="delete that reply" data-id={data._id}>delete</button>
         </p>
       </div> 
     );    
   }
 }
-const ThreadListElement = ReactRedux.connect(null, null)(ThreadListElementClass);
+const ThreadListElement = ReactRedux.connect(mapThreadListElementStateToProps, null)(ThreadListElementClass);
 
+
+// (7) Show All Button (child) -----------------------------------
+const mapShowAllStateToProps = (state) => {return {
+  allThreads: state.allThreads,
+  allThreadsComplete: state.allThreadsComplete
+}}
+
+function showAllDispatch(dispatch) {
+  return {
+    setVal: (thread_id) => dispatch(fetchAction(GET_ALL_REPLYS, {thread_id: thread_id})), // async
+    resetVal: (thread_id) => dispatch({type:RESET_ALL_REPLYS, thread_id: thread_id}) // sync
+  };
+}
+
+class ShowAllClass extends React.Component {
+  constructor(props) {
+    super(props);
+    this.label = ['show all # replies', 'show recent replies'];
+    this.state = { 
+      showAllFlag: false,
+      label: this.label[0].replace('#', 88)
+    };
+    this.handleClick = this.handleClick.bind(this);
+    this.getReplyLength = this.getReplyLength.bind(this);
+  }
+  
+  getReplyLength() {
+    let r = -1;
+    this.props.allThreads.forEach(v=>{
+      console.log(3333, v._id, this.props.thread_id)
+      if(v._id==this.props.thread_id) r=v.replycount
+    });  
+    return r;
+  }
+  
+  handleClick(e) {
+    e.preventDefault();
+    if(this.state.showAllFlag) this.props.resetVal(this.props.thread_id);
+    else this.props.setVal(this.props.thread_id);
+    this.setState({showAllFlag: !this.state.showAllFlag, label: this.label[1*!this.state.showAllFlag].replace('#', this.getReplyLength())});
+  }
+   
+  render() { 
+    if(this.props.replycount>this.props.numreplys) {
+      return (
+        <div className="reply toggle-list">
+          <p><button onClick={this.handleClick} class="button button-middle" title="Show full list of this thread">{this.state.label}</button></p>      
+        </div>
+      );        
+    }
+    return (<React.Fragment></React.Fragment>);
+  }
+}
+const ShowAll = ReactRedux.connect(mapShowAllStateToProps, showAllDispatch)(ShowAllClass);
 
 
 
@@ -236,7 +308,8 @@ const defaultState = {
   labelDelete: "Delete Password",
   labelAddThread: "add thread",
   message: '',
-  allThreads: []
+  allThreads: [],
+  allThreadsComplete: []
 }
 
 
@@ -246,15 +319,17 @@ const defaultState = {
 function fetchAction(action, data, board = 'general') {
   return function(dispatch) {
     let mt = 'POST'; // method-check
-    if([GET_ALL_LIST].indexOf(action)!==-1) mt = 'GET'; 
+    if([GET_ALL_LIST, GET_ALL_REPLYS].indexOf(action)!==-1) mt = 'GET'; 
     
     let pt = 'threads'; // path-check
-    if([ADD_REPLY].indexOf(action)!==-1) pt = 'replies';
+    if([ADD_REPLY, GET_ALL_REPLYS].indexOf(action)!==-1) pt = 'replies';
     
-    return fetchData(mt, 'https://s-projects18-fcc-65.glitch.me/api/'+pt+'/'+board, data)
+    let q = ''; // query-check
+    if([GET_ALL_REPLYS].indexOf(action)!==-1) q = '?thread_id='+data.thread_id;
+    
+    return fetchData(mt, 'https://s-projects18-fcc-65.glitch.me/api/'+pt+'/'+board+q, data)
       .then(json => {
-        // refresh threadlist -> not automatic on async-stuff
-        // TODO: check - is this the right way?
+        // refresh threadlist on changes -> not automatic on async-stuff
         if([ADD_REPLY, ADD_THREAD].indexOf(action)!==-1) dispatch(fetchAction(GET_ALL_LIST, {})); 
         return json;
       })
@@ -277,6 +352,20 @@ const reducer = (state=defaultState, action) => {
     cState.allThreads = action.data;
   } else if(action.type==ADD_REPLY) {
     cState.message="success";
+  } else if(action.type==GET_ALL_REPLYS) {
+    cState.allThreadsComplete = cState.allThreadsComplete.filter(v=>{
+      if(v._id!==action.data[0]._id) return true;
+      return false;
+    });
+    cState.allThreadsComplete.push(action.data[0]);
+    cState.message="success";
+  } else if(action.type==RESET_ALL_REPLYS) {
+    cState.allThreadsComplete = cState.allThreadsComplete.filter(v=>{
+      if(v._id == action.thread_id) return false;
+      return true;
+    });
+    cState.message="success";
+    console.log(999, action)
   }
   
   cl("store",action);

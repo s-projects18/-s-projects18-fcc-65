@@ -14,6 +14,8 @@ TODOS
 - OK: report reply
 - OK: delete thread
 - OK: delete reply
+- OK: format date/ time
+- OK: insert ... if more than 3 replies
 - delete all old entries on server start
 - testing
 */
@@ -186,6 +188,7 @@ class ThreadListClass extends React.Component {
           return (
             <div className="threadlist">
               <ThreadListElement data-class="is-thread" thread='1' thread_id={thread._id} data={thread} />
+              {thread.replycount>replys.length && <div class="reply empty-separator">...</div>}
               {replys.map((reply, i, a)=>{
                 if(i<a.length-1) return (<ThreadListElement  thread='0' thread_id={thread._id} data={reply} />);
                 else return (<ThreadListElement data-class="last" thread='0' thread_id={thread._id} data={reply} />);
@@ -360,7 +363,7 @@ class ThreadListElementClass extends React.Component {
    
     return (
       <div className={cls}>
-        <p className="date">{data.created_on}</p>
+        <p className="date">{new Date(data.created_on).toLocaleDateString('en')} - {new Date(data.created_on).toLocaleTimeString('en')}</p>
         <p className="text">{data.text}</p>
         <p className="buttons">
           <button onClick={this.handleReport} className="button button-small" title="report that reply" data-id={data._id}>report</button>

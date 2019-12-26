@@ -73,6 +73,10 @@ app.use((req, res, next)=>{
   } else next();
 });
 
+// delete threads older than 5 hours
+app.use((req, res, next)=>{
+  database.deleteOldThreads(5*60).then(r=>next()).catch(e=>console.log(e));
+});
 
 // ----------------- get/post functions -----------------------
 // show html-version of README.md

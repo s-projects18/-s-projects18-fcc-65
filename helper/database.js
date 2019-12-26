@@ -304,3 +304,21 @@ exports.deleteBoard = (board) => {
     });    
   });
 }
+
+exports.deleteOldThreads = (numMinutes=-1) => {
+  let d = new Date();
+  d.setMinutes(d.getMinutes()-numMinutes);
+  let filter = {created_on: {$lt:d}};
+  return new Promise( (resolve, reject)=>{  
+    if(numMinutes<=1) reject("wrong value for numMinutes: "+numMinutes); 
+    Threads.deleteMany(filter, (err, resultObject) => {
+      if(err==null) {
+        resolve(resultObject); 
+      } else {
+        console.log(err); 
+        reject(err);     
+      }
+    });    
+  });
+}
+

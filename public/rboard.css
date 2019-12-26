@@ -194,3 +194,8 @@ textarea {
 
 .reply .report button {}
 
+.reply.empty-separator {
+  font-weight:bold;
+  justify-content: center;
+  padding: 0 0 0.2rem 0;
+}

@@ -1,24 +1,5 @@
-const cl = console.log;
 const {	Provider } = ReactRedux;
 
-
-/*
-TODOS
-- OK: error: add reply in all-reply-mode + change to recent -> old list is shown
-- OK: error: add reply > adds reply sometimes to wrong thread
-- OK: show info-message on begin of API request
-- OK: show error messages
-- OK: error: empty password is allowed: add thread+add reply
-- IGNORE: error: invalid password (üüü) allowed for add thred
-- OK: report thread
-- OK: report reply
-- OK: delete thread
-- OK: delete reply
-- OK: format date/ time
-- OK: insert ... if more than 3 replies
-- delete all old entries on server start
-- testing
-*/
 
 // ========= HELPER =============================
 // fetch-helper
@@ -531,7 +512,7 @@ const reducer = (state=defaultState, action) => {
     cState.messageIsError=false;    
   }
   
-  console.log("store",cState);
+  //console.log("store",cState);
   //console.log("action",action);
   return cState;
 }

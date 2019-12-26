@@ -12,8 +12,10 @@ TODOS
 - IGNORE: error: invalid password (üüü) allowed for add thred
 - OK: report thread
 - OK: report reply
-- delete thread
-- delete reply
+- OK: delete thread
+- OK: delete reply
+- delete all old entries on server start
+- testing
 */
 
 // ========= HELPER =============================
@@ -33,7 +35,7 @@ async function fetchData(method, url = '', data = {}) {
     redirect: 'follow', // manual, *follow, error
     referrer: 'no-referrer' // no-referrer, *client
   };
-  if(method=="POST" || method=="PUT") obj.body = JSON.stringify(data) // body data type must match "Content-Type" header
+  if(method=="POST" || method=="PUT" || method=="DELETE") obj.body = JSON.stringify(data) // body data type must match "Content-Type" header
   const response = await fetch(url, obj);
   return await response.json(); 
 }
@@ -47,6 +49,8 @@ const GET_ALL_LIST = "GET_ALL_LIST";
 const GET_ALL_REPLYS = "GET_ALL_REPLYS";
 const REPORT_THREAD = "REPORT_THREAD";
 const REPORT_REPLY = "REPORT_REPLY";
+const DELETE_THREAD = "DELETE_THREAD";
+const DELETE_REPLY = "DELETE_REPLY";
 
 const RESET_ALL_REPLYS = "RESET_ALL_REPLYS"; // sync
 const REQUEST_START = "REQUEST_START";
@@ -54,7 +58,6 @@ const USER_EVENT = "USER_EVENT";
 
 // returns action object
 function receiveAction(action, json, board) {
-console.log("receiveAction", action)
   return {
     type: action,
     board: board,
@@ -277,13 +280,41 @@ const NewReply = ReactRedux.connect(mapNewReplyStateToProps, NewReplyDispatch)(N
 
 // (6) Thread List Element (child) -----------------------------------
 const mapThreadListElementStateToProps = (state) => {return {
-  board: state.board
+  board: state.board,
+  allThreadsComplete: state.allThreadsComplete
 }}
 
 function threadListElementDispatch(dispatch) {
   return {
     setValThread: (thread_id, board) => dispatch(fetchAction(REPORT_THREAD, {thread_id: thread_id}, board)), // async
     setValReply: (thread_id, reply_id, board) => dispatch(fetchAction(REPORT_REPLY, {thread_id: thread_id, reply_id: reply_id}, board)),
+    deleteThread: (thread_id, delete_password, board) => dispatch(
+      fetchAction(DELETE_THREAD,
+                  {thread_id: thread_id, delete_password: delete_password},
+                  board,
+                  () => {
+                    dispatch({type: RESET_ALL_REPLYS, thread_id: thread_id});
+                    return dispatch(fetchAction(GET_ALL_LIST, {}, board));
+                  }
+                 )
+    ),
+    deleteReplyAll: (thread_id, reply_id, delete_password, board) => dispatch(
+      fetchAction(DELETE_REPLY,
+                  {thread_id: thread_id, reply_id: reply_id, delete_password: delete_password},
+                  board,
+                  () => {
+                      dispatch(fetchAction(GET_ALL_LIST, {}, board));
+                      return dispatch(fetchAction(GET_ALL_REPLYS, {thread_id: thread_id}, board))
+                  }
+                 )
+    ),
+    deleteReplyRecent: (thread_id, reply_id, delete_password, board) => dispatch(
+      fetchAction(DELETE_REPLY,
+                  {thread_id: thread_id, reply_id: reply_id, delete_password: delete_password},
+                  board,
+                  () => dispatch(fetchAction(GET_ALL_LIST, {}, board)) 
+                 )
+    ),    
     userEvent: () => dispatch({type:USER_EVENT}) // sync
   };
 }
@@ -292,6 +323,7 @@ class ThreadListElementClass extends React.Component {
   constructor(props) {
     super(props);
     this.handleReport = this.handleReport.bind(this);
+    this.handleDelete = this.handleDelete.bind(this);
   }
  
   handleReport(e) {
@@ -300,6 +332,24 @@ class ThreadListElementClass extends React.Component {
     
     if(this.props['thread']==1) this.props.setValThread(this.props['thread_id'], this.props.board);
     else this.props.setValReply(this.props['thread_id'], this.props['data']._id, this.props.board);
+  }
+  
+  handleDelete(e) {
+    e.preventDefault();
+    this.props.userEvent();
+    
+    const password = prompt("Enter password", "");   
+    if(this.props['thread']==1) this.props.deleteThread(this.props['thread_id'], password, this.props.board); // thread
+    else { // reply
+      const check = this.props.allThreadsComplete.filter(v=>v._id==this.props.thread_id);
+      if(check.length==1) {
+        // show-all-replys-mode and must update the reply-list
+        this.props.deleteReplyAll(this.props['thread_id'], this.props['data']._id, password, this.props.board); // dispatch
+      } else {
+        // show-recent-mode
+        this.props.deleteReplyRecent(this.props['thread_id'], this.props['data']._id, password, this.props.board); // dispatch      
+      }      
+    }
   }
   
   render() {
@@ -314,7 +364,7 @@ class ThreadListElementClass extends React.Component {
         <p className="text">{data.text}</p>
         <p className="buttons">
           <button onClick={this.handleReport} className="button button-small" title="report that reply" data-id={data._id}>report</button>
-          <button className="button button-small" title="delete that reply" data-id={data._id}>delete</button>
+          <button onClick={this.handleDelete} className="button button-small" title="delete that reply" data-id={data._id}>delete</button>
         </p>
       </div> 
     );    
@@ -401,10 +451,11 @@ function fetchAction(action, data, board, next=false) {
     
     let mt = 'POST'; // method-check
     if([GET_ALL_LIST, GET_ALL_REPLYS].indexOf(action)!==-1) mt = 'GET'; 
-    if([REPORT_THREAD, REPORT_REPLY].indexOf(action)!==-1) mt = 'PUT'; 
+    if([REPORT_THREAD, REPORT_REPLY].indexOf(action)!==-1) mt = 'PUT';
+    if([DELETE_THREAD, DELETE_REPLY].indexOf(action)!==-1) mt = 'DELETE';
     
     let pt = 'threads'; // path-check
-    if([ADD_REPLY, GET_ALL_REPLYS, REPORT_REPLY].indexOf(action)!==-1) pt = 'replies';
+    if([ADD_REPLY, GET_ALL_REPLYS, REPORT_REPLY, DELETE_REPLY].indexOf(action)!==-1) pt = 'replies';
     
     let q = ''; // query-check
     if([GET_ALL_REPLYS].indexOf(action)!==-1) q = '?thread_id='+data.thread_id;
@@ -439,11 +490,14 @@ const isErrorMessage = (action, cState, messageOK=false, messageError=false) => 
 // [2] handles only synchroneous stuff (async -> fetchAction)
 const reducer = (state=defaultState, action) => {
   const cState = JSON.parse( JSON.stringify(state) );
-  //State.message=""; // reset
   
   // ------------ async ------------------------
   if(action.type==ADD_THREAD) {
     isErrorMessage(action, cState, "added thread");
+  } else if(action.type==DELETE_THREAD) {
+    isErrorMessage(action, cState, "deleted thread"); 
+  } else if(action.type==DELETE_REPLY) {
+    isErrorMessage(action, cState, "deleted reply");     
   } else if(action.type==REPORT_THREAD) {
     isErrorMessage(action, cState, "reported thread"); 
   } else if(action.type==REPORT_REPLY) {
@@ -474,7 +528,8 @@ const reducer = (state=defaultState, action) => {
     cState.messageIsError=false;    
   }
   
-  cl("store",action);
+  console.log("store",cState);
+  //console.log("action",action);
   return cState;
 }
 const store = Redux.createStore(reducer, Redux.applyMiddleware(ReduxThunk.default));

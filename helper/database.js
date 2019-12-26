@@ -46,11 +46,12 @@ const replysSchema = new Schema({
     required:true,
     // attention: validator works also on existing subdocuments,
     // if you add validator later: error is thrown on existing entrys
+    // -> this validator is just for testing validation-functionality
     validate: {
       validator: function(v) {
-        return /^[a-zA-Z0-9 \-_()\[\]]+$/.test(v); // mask: -
+        return /^[öäüÖÄÜßa-zA-Z0-9 \-_()\[\]]+$/.test(v); // mask: -
       },
-      message: props => `${props.value}: only letters, numbers and(-_/[])  are allowed`
+      message: props => `${props.value}: only letters, numbers and (-_/[])  are allowed`
     },  
   }, //*
   delete_password:{type: String, required:true}, //*    

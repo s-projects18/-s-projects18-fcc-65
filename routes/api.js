@@ -22,6 +22,10 @@ module.exports = function (app) {
   app.route('/api/threads/:board')
     // I can POST a thread to a specific message board by passing form data text and delete_password to /api/threads/{board}
     .post( (req, res)=>{
+      if(req.body.delete_password=='') {
+        res.formatter.badRequest([{details: 'Password cannot be empty'}]);
+        return;
+      }
       // encrypt pw
       const saltRounds = 12;
       bcrypt.hash(req.body.delete_password, saltRounds, (err, hash) => { 
@@ -75,6 +79,10 @@ module.exports = function (app) {
     // and it will also update the bumped_on date to the comments date  
     // -> reply is related to thread and NOT to another reply = no hierarchy
     .post( (req, res)=>{
+      if(req.body.delete_password=='') {
+        res.formatter.badRequest([{details: 'Password cannot be empty'}]);
+        return;
+      }
       const saltRounds = 12;
       bcrypt.hash(req.body.delete_password, saltRounds, (err, hash) => {
         const obj = {

@@ -4,6 +4,7 @@
   --background-hover: #81968f;
   --background-2: #96bdc6;
   --background-2a:rgba(150, 189, 198, 0.3);
+  --background-3: #D7263D; /* error */
   --font-color: #050505;
   --bradius: 0.5rem;
 }
@@ -24,6 +25,9 @@ h1, h2, h3 {
   margin-bottom:1rem;
   text-align:center;
   font-weight:normal;
+}
+textarea {
+  resize: none; /* in chrome: handle is positioned anywhere */
 }
 .width {
   width:100%;
@@ -104,11 +108,26 @@ h1, h2, h3 {
 
 /* message */
 .message {
-  margin-top:2rem;
-  border:2px solid var(--background-1);
-  border-radius: var(--bradius);
-  text-align:center;
+  position:fixed;
+  bottom:0;
+  width:calc(100% - 4rem);
+  max-width:800px;  
+  margin:0 auto;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  border:2px solid #a0a0a0;
+  border-radius: var(--bradius) var(--bradius) 0 0;
+  background-color:var(--background-1);
+  color:white;
+  transition: all 300ms;
 }
+.message.error {
+  background-color:var(--background-3);  
+}
+.message.hide {height:0; border-width:0;}
+.message.show {height:2rem; border-width:2px;}
 
 /* thread */
 .addthread {

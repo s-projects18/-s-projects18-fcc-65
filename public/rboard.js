@@ -4,11 +4,14 @@ const {	Provider } = ReactRedux;
 
 /*
 TODOS
-- include (general) board
-- show error messages
-- show info-message on begin of API request
-- report thread
-- report reply
+- OK: error: add reply in all-reply-mode + change to recent -> old list is shown
+- OK: error: add reply > adds reply sometimes to wrong thread
+- OK: show info-message on begin of API request
+- OK: show error messages
+- OK: error: empty password is allowed: add thread+add reply
+- IGNORE: error: invalid password (üüü) allowed for add thred
+- OK: report thread
+- OK: report reply
 - delete thread
 - delete reply
 */
@@ -32,7 +35,7 @@ async function fetchData(method, url = '', data = {}) {
   };
   if(method=="POST" || method=="PUT") obj.body = JSON.stringify(data) // body data type must match "Content-Type" header
   const response = await fetch(url, obj);
-  return await response.json(); // parses JSON response into native JavaScript objects
+  return await response.json(); 
 }
 
 
@@ -42,8 +45,12 @@ const ADD_THREAD = "ADD_THREAD"; // async
 const ADD_REPLY = "ADD_REPLY";
 const GET_ALL_LIST = "GET_ALL_LIST";
 const GET_ALL_REPLYS = "GET_ALL_REPLYS";
+const REPORT_THREAD = "REPORT_THREAD";
+const REPORT_REPLY = "REPORT_REPLY";
 
 const RESET_ALL_REPLYS = "RESET_ALL_REPLYS"; // sync
+const REQUEST_START = "REQUEST_START";
+const USER_EVENT = "USER_EVENT";
 
 // returns action object
 function receiveAction(action, json, board) {
@@ -51,7 +58,7 @@ console.log("receiveAction", action)
   return {
     type: action,
     board: board,
-    data: json.data,
+    data: json,
     receivedAt: Date.now()
   }
 }
@@ -63,9 +70,16 @@ const mapHeadlineStateToProps = (state) => {return { board: state.board}}
 const HeadlineObj = (props) => <h1>Board: {props.board}</h1>;
 const Headline = ReactRedux.connect(mapHeadlineStateToProps)(HeadlineObj); // no dispatcher
 
+
 // (2) Message --------------------------------------
-const mapMessageStateToProps = (state) => {return { message: state.message}}
-const MessageObj = (props) => (props.message=='')  ? null: <p className="message">{props.message}</p>;
+const mapMessageStateToProps = (state) => {return { message: state.message, messageIsError: state.messageIsError}}
+const MessageObj = (props) => {
+  const cls = ['message'];
+  if (props.message=='') cls.push('hide');  
+  else cls.push('show');
+  if (props.messageIsError) cls.push('error');
+  return <p className={cls.join(' ')}>{props.message}</p>;
+}
 const Message = ReactRedux.connect(mapMessageStateToProps)(MessageObj);
 
 
@@ -74,17 +88,18 @@ const mapNewThreadStateToProps = (state) => {return {
   threadHeadline: state.threadHeadline,
   labelText: state.labelText,
   labelDelete: state.labelDelete,
-  labelAddThread: state.labelAddThread
+  labelAddThread: state.labelAddThread,
+  board: state.board
 }}
 
 function newThreadDispatch(dispatch) {
   return {
-    setVal: (text, delete_password) => dispatch(
+    setVal: (text, delete_password, board) => dispatch(
       fetchAction(
         ADD_THREAD,
         {text: text, delete_password: delete_password},
-        'general',
-        () => dispatch(fetchAction(GET_ALL_LIST, {})) // callback
+        board,
+        () => dispatch(fetchAction(GET_ALL_LIST, {}, board)) // callback
       )
     ) 
   };
@@ -103,7 +118,7 @@ class NewThreadClass extends React.Component {
   }
   handleSubmit(e) {
     e.preventDefault();
-    this.props.setVal(this.state.text, this.state.delete_password); // dispatch
+    this.props.setVal(this.state.text, this.state.delete_password, this.props.board); // dispatch
     this.setState({text: '', delete_password: ''});
   }
   
@@ -134,12 +149,13 @@ const NewThread = ReactRedux.connect(mapNewThreadStateToProps, newThreadDispatch
 // (4) Threadlist (parent) -----------------------------------
 const mapNewThreadListStateToProps = (state) => {return {
   allThreads: state.allThreads,
-  allThreadsComplete: state.allThreadsComplete
+  allThreadsComplete: state.allThreadsComplete,
+  board: state.board
 }}
 
 function ThreadListDispatch(dispatch) {
   return {
-    getAllList: () => dispatch(fetchAction(GET_ALL_LIST, {}))
+    getAllList: (board) => dispatch(fetchAction(GET_ALL_LIST, {}, board))
   };
 }
 
@@ -150,7 +166,7 @@ class ThreadListClass extends React.Component {
   
   // get list on load
   componentDidMount() {
-    this.props.getAllList();
+    this.props.getAllList(this.props.board);
   }
  
   render() {
@@ -166,10 +182,10 @@ class ThreadListClass extends React.Component {
           
           return (
             <div className="threadlist">
-              <ThreadListElement data-class="is-thread" thread_id={thread._id} data={thread} />
+              <ThreadListElement data-class="is-thread" thread='1' thread_id={thread._id} data={thread} />
               {replys.map((reply, i, a)=>{
-                if(i<a.length-1) return (<ThreadListElement  thread_id={thread._id} data={reply} />);
-                else return (<ThreadListElement data-class="last" thread_id={thread._id} data={reply} />);
+                if(i<a.length-1) return (<ThreadListElement  thread='0' thread_id={thread._id} data={reply} />);
+                else return (<ThreadListElement data-class="last" thread='0' thread_id={thread._id} data={reply} />);
               })}
               <ShowAll numreplys={thread.replys.length} replycount={thread.replycount} thread_id={thread._id} />
               <NewReply thread_id={thread._id} />
@@ -185,24 +201,28 @@ const ThreadList = ReactRedux.connect(mapNewThreadListStateToProps, ThreadListDi
 
 // (5) Add Reply (child) -----------------------------------
 const mapNewReplyStateToProps = (state) => {return {
-  allThreadsComplete: state.allThreadsComplete
+  allThreadsComplete: state.allThreadsComplete,
+  board: state.board
 }}
 
 // we have 2 dispatches: first updates replys und a callback that gets current list
 function NewReplyDispatch(dispatch) {
   return {
-    setValRecent: (text, delete_password, thread_id) => dispatch(
+    setValRecent: (text, delete_password, thread_id, board) => dispatch(
       fetchAction(ADD_REPLY,
                   {text: text, delete_password: delete_password, thread_id: thread_id},
-                  'general',
-                  () => dispatch(fetchAction(GET_ALL_LIST, {})) // callback
+                  board,
+                  () => dispatch(fetchAction(GET_ALL_LIST, {}, board)) 
       )
     ),
-    setValAllReply: (text, delete_password, thread_id) => dispatch(
+    setValAllReply: (text, delete_password, thread_id, board) => dispatch(
       fetchAction(ADD_REPLY, 
                   {text: text, delete_password: delete_password, thread_id: thread_id},
-                  'general',
-                  () => dispatch(fetchAction(GET_ALL_REPLYS, {thread_id: thread_id})) // callback
+                  board,
+                  () => {
+                      dispatch(fetchAction(GET_ALL_LIST, {}, board));
+                      return dispatch(fetchAction(GET_ALL_REPLYS, {thread_id: thread_id}, board))
+                  }
       )
     )
   };
@@ -213,8 +233,7 @@ class NewReplyClass extends React.Component {
     super(props);
     this.state = { 
       text: '',
-      delete_password: '',
-      thread_id: this.props.thread_id
+      delete_password: ''
     };
     this.handleSubmit = this.handleSubmit.bind(this);
     this.set = this.set.bind(this);
@@ -222,16 +241,16 @@ class NewReplyClass extends React.Component {
 
   handleSubmit(e) {
     e.preventDefault();
-    const check = this.props.allThreadsComplete.filter(v=>v._id==this.state.thread_id);
+    const check = this.props.allThreadsComplete.filter(v=>v._id==this.props.thread_id);
     if(check.length==1) {
       // show-all-replys-mode and must update the reply-list
-      this.props.setValAllReply(this.state.text, this.state.delete_password, this.state.thread_id); // dispatch
+      this.props.setValAllReply(this.state.text, this.state.delete_password, this.props.thread_id, this.props.board); // dispatch
     } else {
       // show-recent-mode
-      this.props.setValRecent(this.state.text, this.state.delete_password, this.state.thread_id); // dispatch      
+      this.props.setValRecent(this.state.text, this.state.delete_password, this.props.thread_id, this.props.board); // dispatch      
     }
     
-    this.setState({text: '', delete_password: ''}); // thread_id will not change
+    this.setState({text: '', delete_password: ''});
   }
   
   set(e) { // local state only
@@ -247,7 +266,7 @@ class NewReplyClass extends React.Component {
           <label><span>Text</span><textarea onChange={this.set} value={this.state.text} name="text"></textarea></label>
           <label><span>Delete Password</span><input type="text" onChange={this.set} value={this.state.delete_password} name="delete_password" /></label>
           <span class="submit"><button class="button" type="submit">add reply</button></span>
-          <input type="hidden" onChange={this.set} name="thread_id" value={this.state.thread_id} />
+          <input type="hidden" name="thread_id" value={this.props.thread_id} />
         </form>
       </div> 
     );    
@@ -258,14 +277,31 @@ const NewReply = ReactRedux.connect(mapNewReplyStateToProps, NewReplyDispatch)(N
 
 // (6) Thread List Element (child) -----------------------------------
 const mapThreadListElementStateToProps = (state) => {return {
-  allThreads: state.allThreads
+  board: state.board
 }}
+
+function threadListElementDispatch(dispatch) {
+  return {
+    setValThread: (thread_id, board) => dispatch(fetchAction(REPORT_THREAD, {thread_id: thread_id}, board)), // async
+    setValReply: (thread_id, reply_id, board) => dispatch(fetchAction(REPORT_REPLY, {thread_id: thread_id, reply_id: reply_id}, board)),
+    userEvent: () => dispatch({type:USER_EVENT}) // sync
+  };
+}
 
 class ThreadListElementClass extends React.Component {
   constructor(props) {
     super(props);
+    this.handleReport = this.handleReport.bind(this);
   }
  
+  handleReport(e) {
+    e.preventDefault();
+    this.props.userEvent();
+    
+    if(this.props['thread']==1) this.props.setValThread(this.props['thread_id'], this.props.board);
+    else this.props.setValReply(this.props['thread_id'], this.props['data']._id, this.props.board);
+  }
+  
   render() {
     const cl = ['reply'];
     if(typeof this.props['data-class'] !== 'undefined') cl.push(this.props['data-class']);
@@ -277,25 +313,27 @@ class ThreadListElementClass extends React.Component {
         <p className="date">{data.created_on}</p>
         <p className="text">{data.text}</p>
         <p className="buttons">
-          <button className="button button-small" title="report that reply" data-id={data._id}>report</button>
+          <button onClick={this.handleReport} className="button button-small" title="report that reply" data-id={data._id}>report</button>
           <button className="button button-small" title="delete that reply" data-id={data._id}>delete</button>
         </p>
       </div> 
     );    
   }
 }
-const ThreadListElement = ReactRedux.connect(mapThreadListElementStateToProps, null)(ThreadListElementClass);
+const ThreadListElement = ReactRedux.connect(mapThreadListElementStateToProps, threadListElementDispatch)(ThreadListElementClass);
 
 
 // (7) Show All Button (child) -----------------------------------
 const mapShowAllStateToProps = (state) => {return {
-  labelsShowAll: state.labelsShowAll
+  labelsShowAll: state.labelsShowAll,
+  board: state.board
 }}
 
 function showAllDispatch(dispatch) {
   return {
-    setVal: (thread_id) => dispatch(fetchAction(GET_ALL_REPLYS, {thread_id: thread_id})), // async
-    resetVal: (thread_id) => dispatch({type:RESET_ALL_REPLYS, thread_id: thread_id}) // sync
+    setVal: (thread_id, board) => dispatch(fetchAction(GET_ALL_REPLYS, {thread_id: thread_id}, board)), // async
+    resetVal: (thread_id) => dispatch({type:RESET_ALL_REPLYS, thread_id: thread_id}), // sync
+    userEvent: () => dispatch({type:USER_EVENT}) // sync
   };
 }
 
@@ -315,8 +353,9 @@ class ShowAllClass extends React.Component {
   
   handleClick(e) {
     e.preventDefault();
+    this.props.userEvent();
     if(this.state.showAllFlag) this.props.resetVal(this.props.thread_id);
-    else this.props.setVal(this.props.thread_id);
+    else this.props.setVal(this.props.thread_id, this.props.board);
     this.setState({showAllFlag: !this.state.showAllFlag});
   }
   
@@ -337,13 +376,14 @@ const ShowAll = ReactRedux.connect(mapShowAllStateToProps, showAllDispatch)(Show
 
 // ======== REDUX ===============================
 const defaultState = {
-  board: "unknown",
+  board: window.location.pathname.split('/').pop(),
   threadHeadline: "Create new thread",
   labelText:"Text",
   labelDelete: "Delete Password",
   labelAddThread: "add thread",
   labelsShowAll: ['show all # replies', 'show recent replies'],
   message: '',
+  messageIsError: false,
   allThreads: [],
   allThreadsComplete: []
 }
@@ -354,17 +394,21 @@ const defaultState = {
 //   > eg click-event -> dispatch:fetchAction -> dispatch:receiveAction -> store
 // - just get async data (no decisions based on state here!)
 // next(): optional callback if 2 depending fetchActions must be called
-function fetchAction(action, data, board='general', next=false) {
+function fetchAction(action, data, board, next=false) {
   return function(dispatch) {
+    // user-feedback
+    if([ADD_REPLY, ADD_THREAD].indexOf(action)!==-1) dispatch({type:REQUEST_START});
+    
     let mt = 'POST'; // method-check
     if([GET_ALL_LIST, GET_ALL_REPLYS].indexOf(action)!==-1) mt = 'GET'; 
+    if([REPORT_THREAD, REPORT_REPLY].indexOf(action)!==-1) mt = 'PUT'; 
     
     let pt = 'threads'; // path-check
-    if([ADD_REPLY, GET_ALL_REPLYS].indexOf(action)!==-1) pt = 'replies';
+    if([ADD_REPLY, GET_ALL_REPLYS, REPORT_REPLY].indexOf(action)!==-1) pt = 'replies';
     
     let q = ''; // query-check
     if([GET_ALL_REPLYS].indexOf(action)!==-1) q = '?thread_id='+data.thread_id;
-    
+  
     return fetchData(mt, 'https://s-projects18-fcc-65.glitch.me/api/'+pt+'/'+board+q, data)
       .then(json =>{
         if(next) next(); 
@@ -374,32 +418,60 @@ function fetchAction(action, data, board='general', next=false) {
   }
 }
 
+// reducer-helper
+const isErrorMessage = (action, cState, messageOK=false, messageError=false) => {
+  if(action.data.hasOwnProperty('errors')) {
+    if(messageError) {
+      cState.message=messageError;
+      console.log(action.data.errors[0].details);
+    } else {
+      cState.message=action.data.errors[0].details;  
+    }
+    cState.messageIsError=true;
+    return true;
+  } if(messageOK) {
+    cState.message=messageOK;
+    cState.messageIsError=false;
+    return false;
+  }  
+}
 
 // [2] handles only synchroneous stuff (async -> fetchAction)
 const reducer = (state=defaultState, action) => {
   const cState = JSON.parse( JSON.stringify(state) );
-  cState.message=""; // reset
+  //State.message=""; // reset
   
+  // ------------ async ------------------------
   if(action.type==ADD_THREAD) {
-    cState.message="success";
+    isErrorMessage(action, cState, "added thread");
+  } else if(action.type==REPORT_THREAD) {
+    isErrorMessage(action, cState, "reported thread"); 
+  } else if(action.type==REPORT_REPLY) {
+    isErrorMessage(action, cState, "reported reply");     
   } else if(action.type==GET_ALL_LIST) {
-    cState.allThreads = action.data;
+    if(!isErrorMessage(action, cState)) cState.allThreads = action.data.data;
   } else if(action.type==ADD_REPLY) {
-    cState.message="success";
+    isErrorMessage(action, cState, "added reply");
   } else if(action.type==GET_ALL_REPLYS) {
-    cState.allThreadsComplete = cState.allThreadsComplete.filter(v=>{ // remove thread with old replys...
-      if(v._id!==action.data[0]._id) return true;
-      return false;
-    });
-    cState.allThreadsComplete.push(action.data[0]); // ...and insert thread with new reply
-    cState.message="success";
+    if(!isErrorMessage(action, cState)) {
+      cState.allThreadsComplete = cState.allThreadsComplete.filter(v=>{ // remove thread with old replys...
+        if(v._id!==action.data.data[0]._id) return true;
+        return false;
+      });
+      cState.allThreadsComplete.push(action.data.data[0]); // ...and insert thread with new reply      
+    }
+  // ------------ sync ------------------------  
+  } else if(action.type==REQUEST_START) {
+    cState.message="sending request...";
+    cState.messageIsError=false;
   } else if(action.type==RESET_ALL_REPLYS) {
     cState.allThreadsComplete = cState.allThreadsComplete.filter(v=>{
       if(v._id == action.thread_id) return false;
       return true;
     });
-    cState.message="success";
-    console.log(999, action)
+  } else if(action.type==USER_EVENT) { // reset message state
+    cState.message="";
+    cState.messageIsError=false;    
   }
   
   cl("store",action);

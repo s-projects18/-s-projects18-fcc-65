@@ -22,7 +22,7 @@
 		"helmet": "^3.1.0",
     "pug": "^2.0.4",
     "express-response-formatter": "^1.1.0",
-    "bcrypt": "^3.0.6",
+    "bcrypt": "^5.0.0",
     "marked": "^0.7.0",
     "file-system":"^2.2.2"  
 	},
